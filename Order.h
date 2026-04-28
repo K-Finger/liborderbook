@@ -1,8 +1,12 @@
 #pragma once
 
+#include <stdexcept>
+#include <string>
+
 #include "Side.h"
 #include "OrderType.h"
 #include "Types.h"
+#include "Constants.h"
 
 class Order
 {
@@ -18,6 +22,12 @@ public:
     {
     }
 
+    // Seperate static factory method because market orders use InvalidPrice
+    static Order makeMarket(OrderId id, Side side, Quantity quantity, Timestamp ts)
+    {
+        return Order{OrderType::Market, id, side, InvalidPrice, quantity, ts};
+    }
+
     // Copies forbidden (OrderId identity)
     // Moves allowed for ownership transfer
     Order(const Order&) = delete;
@@ -25,17 +35,26 @@ public:
     Order(Order&&) = default;
     Order& operator=(Order&&) = default;
 
-    OrderType GetOrderType() const { return orderType_; }
-    OrderId   GetOrderId()   const { return orderId_; }
-    Side      GetSide()      const { return side_; }
-    Price     GetPrice()     const { return price_; }
-    Quantity  GetInitialQuantity()   const { return initialQuantity_; }
-    Quantity  GetRemainingQuantity() const { return remainingQuantity_; }
-    Quantity  getFilledQuantity() const { return GetInitialQuantity() - GetRemainingQuantity(); }
-    Timestamp GetTimestamp() const { return timestamp_; }
+    OrderType getOrderType() const noexcept { return orderType_; }
+    OrderId   getOrderId()   const noexcept { return orderId_; }
+    Side      getSide()      const noexcept { return side_; }
+    Price     getPrice()     const noexcept { return price_; }
+    Quantity  getInitialQuantity()   const noexcept { return initialQuantity_; }
+    Quantity  getRemainingQuantity() const noexcept { return remainingQuantity_; }
+    Timestamp getTimestamp() const noexcept { return timestamp_; }
 
-    bool      isFilled() const { return GetRemainingQuantity() == 0; }
+    [[nodiscard]] Quantity getFilledQuantity() const noexcept { return getInitialQuantity() - getRemainingQuantity(); }
+    [[nodiscard]] bool     isFilled()          const noexcept { return getRemainingQuantity() == Quantity{ 0 }; }
 
+    void fill(Quantity qty)
+    {
+        if (qty > remainingQuantity_)
+            throw std::logic_error(
+                "Fill of " + std::to_string(qty.get()) +
+                " exceeds remaining quantity " + std::to_string(remainingQuantity_.get()) +
+                " on order " + std::to_string(orderId_.get()));
+        remainingQuantity_ -= qty;
+    }
 private:
     OrderType orderType_;
     OrderId orderId_;

@@ -1,0 +1,33 @@
+# Build output
+build/
+cmake-build-*/
+out/
+bin/
+*.o
+*.obj
+*.exe
+*.pdb
+*.ilk
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# VSCode — keep project config, ignore personal
+.vscode/*
+!.vscode/c_cpp_properties.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+
+# OS
+.DS_Store
+Thumbs.db
