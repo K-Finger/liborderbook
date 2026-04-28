@@ -174,17 +174,18 @@ std::vector<Trade> OrderBook::matchOrder(OrderPointer incomingOrder)
     return trades;
 }
 
-std::vector<Trade> OrderBook::addOrder(OrderPointer order)
+std::vector<Trade> OrderBook::addOrder(Order order)
 {
+    auto orderPointer = std::make_shared<Order>(std::move(order));
     std::vector<Trade> trades;
 
-    if (canMatch(order)) {
-        trades = matchOrder(order);
+    if (canMatch(orderPointer)) {
+        trades = matchOrder(orderPointer);
 
     }
 
-    if (!order->isFilled()) {
-        addToBook(order);
+    if (!orderPointer->isFilled()) {
+        addToBook(orderPointer);
     }
 
     return trades;

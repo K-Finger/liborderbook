@@ -16,7 +16,7 @@ using OrderPointer = std::shared_ptr<Order>;
 class OrderBook
 {
 public:
-    std::vector<Trade> addOrder(OrderPointer order);
+    std::vector<Trade> addOrder(Order order);
     bool cancelOrder(OrderId orderId);
     std::size_t size() const { return orders_.size(); }
     TradeId getNextTradeId() const { return nextTradeId_; }
