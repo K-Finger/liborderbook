@@ -35,6 +35,7 @@ int main()
     book.addOrder(std::move(buy1));
     book.addOrder(std::move(sell1));
     book.addOrder(std::move(buy2));
+    book.cancelOrder(OrderId{ 3 });
     book.printBook();
 
     return 0;

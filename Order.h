@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdexcept>
-#include <string>
+#include <chrono>
+#include <cstdint>
 
 #include "Side.h"
 #include "OrderType.h"
@@ -22,12 +22,6 @@ public:
     {
     }
 
-    // Seperate static factory method because market orders use InvalidPrice
-    static Order makeMarket(OrderId id, Side side, Quantity quantity, Timestamp ts)
-    {
-        return Order{OrderType::Market, id, side, InvalidPrice, quantity, ts};
-    }
-
     // Copies forbidden (OrderId identity)
     // Moves allowed for ownership transfer
     Order(const Order&) = delete;
@@ -43,18 +37,13 @@ public:
     Quantity  getRemainingQuantity() const noexcept { return remainingQuantity_; }
     Timestamp getTimestamp() const noexcept { return timestamp_; }
 
-    [[nodiscard]] Quantity getFilledQuantity() const noexcept { return getInitialQuantity() - getRemainingQuantity(); }
-    [[nodiscard]] bool     isFilled()          const noexcept { return getRemainingQuantity() == Quantity{ 0 }; }
+    [[nodiscard]] Quantity getFilledQuantity() const noexcept { return initialQuantity_ - remainingQuantity_; }
+    [[nodiscard]] bool     isFilled()          const noexcept { return remainingQuantity_ == Quantity{ 0 }; }
 
-    void fill(Quantity qty)
-    {
-        if (qty > remainingQuantity_)
-            throw std::logic_error(
-                "Fill of " + std::to_string(qty.get()) +
-                " exceeds remaining quantity " + std::to_string(remainingQuantity_.get()) +
-                " on order " + std::to_string(orderId_.get()));
-        remainingQuantity_ -= qty;
-    }
+    void fill(Quantity qty);
+
+    static Timestamp now();
+
 private:
     OrderType orderType_;
     OrderId orderId_;
@@ -63,4 +52,40 @@ private:
     Quantity initialQuantity_;
     Quantity remainingQuantity_;
     Timestamp timestamp_;
+};
+
+class OrderBuilder
+{
+public:
+    OrderBuilder& id(OrderId id);
+
+    OrderBuilder& buy();
+    OrderBuilder& sell();
+
+    OrderBuilder& goodTillCancel();
+    OrderBuilder& market();
+
+    OrderBuilder& price(Price price);
+    OrderBuilder& quantity(Quantity qty);
+    OrderBuilder& timestamp(Timestamp ts);
+
+    Order build();
+
+private:
+    OrderType type_{ OrderType::GoodTillCancel };
+    OrderId   id_{};
+    Side      side_{};
+    Price     price_{};
+    Quantity  quantity_{};
+    Timestamp timestamp_{};
+    std::uint8_t setFlags_{ 0 };
+
+    static constexpr std::uint8_t hasId        = 1 << 0;
+    static constexpr std::uint8_t hasSide      = 1 << 1;
+    static constexpr std::uint8_t hasPrice     = 1 << 2;
+    static constexpr std::uint8_t hasQty       = 1 << 3;
+    static constexpr std::uint8_t hasTimestamp = 1 << 4;
+
+    static constexpr std::uint8_t requiredLimitFlags  = hasId | hasSide | hasPrice | hasQty;
+    static constexpr std::uint8_t requiredMarketFlags = hasId | hasSide | hasQty;
 };
