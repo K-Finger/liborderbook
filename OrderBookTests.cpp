@@ -1,18 +1,29 @@
-#include <iostream>
-
-#include "Types.h"
-#include "Order.h"
+#include <gtest/gtest.h>
 #include "OrderBook.h"
-#include "OrderBook.cpp"
+#include "Order.h"
 
-#define IS_TRUE(x) { if (!(x)) std::cout << __FUNCTION__ << " failed on line " << __LINE__ << std::endl; }
-
-void test_addOrder()
-{
-    OrderBook orderBook
-    IS_TRUE 
+TEST(OrderBookEmpty, SizeIsZero) {
+    OrderBook book;
+    EXPECT_EQ(book.size(), 0u);
 }
 
-int main(void) {
-    test_addOrder();
+TEST(OrderBookCancel, ReturnsFalseForUnknownId) {
+    OrderBook book;
+    EXPECT_FALSE(book.cancelOrder(OrderId{ 42 }));
+}
+
+TEST(OrderBookAddOrder, NoMatchForRestingBuy) {
+    OrderBook book;
+    Order buy = OrderBuilder{}
+        .id(OrderId{ 1 })
+        .buy()
+        .goodTillCancel()
+        .price(Price{ 100 })
+        .quantity(Quantity{ 10 })
+        .build();
+
+    auto trades = book.addOrder(std::move(buy));
+
+    EXPECT_TRUE(trades.empty());
+    EXPECT_EQ(book.size(), 1u);
 }
