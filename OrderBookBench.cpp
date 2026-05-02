@@ -25,8 +25,8 @@
 // BM_GetLevelInfos/1000           4440 ns         4332 ns       165926
 // BM_GetLevelInfos/10000         45313 ns        45200 ns        16593
 
-// Want to get under 80ns addOrder times.
-
+// Want to get down to sub-100ns for addOrder for single threaded
+// Look into chunked bitmaps and intrusive linkedlists
 namespace {
     std::uint64_t g_id = 0; // not thread safe
 
@@ -90,13 +90,6 @@ static void BM_AddOrder_PreBuilt(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_AddOrder_PreBuilt);
-// ---------------------------------------------------------------
-// Benchmark                     Time             CPU   Iterations
-// ---------------------------------------------------------------
-// BM_AddOrder_PreBuilt        216 ns          166 ns      3200000
-
-// Want to get down to sub-100 nanoseconds for single threaded
-// Look into chunked bitmaps and intrusive linkedlists
 
 static void BM_AddOrder_SingleMatch(benchmark::State& state) {
     const std::size_t batch = 10'000;
