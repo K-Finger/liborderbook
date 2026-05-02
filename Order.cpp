@@ -27,6 +27,8 @@ OrderBuilder& OrderBuilder::buy()                  { side_ = Side::Buy;  setFlag
 OrderBuilder& OrderBuilder::sell()                 { side_ = Side::Sell; setFlags_ |= hasSide;      return *this; }
 OrderBuilder& OrderBuilder::goodTillCancel()       { type_ = OrderType::GoodTillCancel;             return *this; }
 OrderBuilder& OrderBuilder::market()               { type_ = OrderType::Market;                     return *this; }
+OrderBuilder& OrderBuilder::fillOrKill()           { type_ = OrderType::FillOrKill;                 return *this; }
+OrderBuilder& OrderBuilder::immediateOrCancel()    { type_ = OrderType::ImmediateOrCancel;          return *this; }
 OrderBuilder& OrderBuilder::price(Price p)         { price_ = p;         setFlags_ |= hasPrice;     return *this; }
 OrderBuilder& OrderBuilder::quantity(Quantity qty) { quantity_ = qty;    setFlags_ |= hasQty;       return *this; }
 OrderBuilder& OrderBuilder::timestamp(Timestamp t) { timestamp_ = t;     setFlags_ |= hasTimestamp; return *this; }

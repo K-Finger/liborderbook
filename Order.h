@@ -64,6 +64,8 @@ public:
 
     OrderBuilder& goodTillCancel();
     OrderBuilder& market();
+    OrderBuilder& fillOrKill();
+    OrderBuilder& immediateOrCancel();
 
     OrderBuilder& price(Price price);
     OrderBuilder& quantity(Quantity qty);

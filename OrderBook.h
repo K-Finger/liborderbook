@@ -52,6 +52,7 @@ private:
     TradeId nextTradeId_{ 1 };
 
     bool canMatch(OrderPointer order) const;
+    bool canFullyFill(Side side, Price price, Quantity qty) const;
     PriceLevel* getBestOppositeLevel(OrderPointer order);
     Trade createTrade(
         OrderPointer incomingOrder,

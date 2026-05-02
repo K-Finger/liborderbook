@@ -69,6 +69,27 @@ bool OrderBook::canMatch(OrderPointer order) const
     }
 }
 
+bool OrderBook::canFullyFill(Side side, Price price, Quantity qty) const
+{
+    Quantity available{ 0 };
+
+    if (side == Side::Buy) {
+        for (const auto& [askPrice, level] : asks_) {
+            if (askPrice > price) break;
+            available += level.totalQuantity;
+            if (available >= qty) return true;
+        }
+    }
+    else {
+        for (const auto& [bidPrice, level] : bids_) {
+            if (bidPrice < price) break;
+            available += level.totalQuantity;
+            if (available >= qty) return true;
+        }
+    }
+    return false;
+}
+
 OrderBook::PriceLevel* OrderBook::getBestOppositeLevel(OrderPointer order)
 {
     if (order->getSide() == Side::Buy) {
@@ -181,16 +202,29 @@ std::vector<Trade> OrderBook::matchOrder(OrderPointer incomingOrder)
 
 std::vector<Trade> OrderBook::addOrder(Order order)
 {
+    if (orders_.contains(order.getOrderId())) {
+        return {};   // TODO: return rejection enum once that exists
+    }
+
+    if (order.getOrderType() == OrderType::FillOrKill &&
+        !canFullyFill(order.getSide(), order.getPrice(), order.getRemainingQuantity())) {
+        return {};
+    }
+
     auto orderPointer = std::make_shared<Order>(std::move(order));
     std::vector<Trade> trades;
 
     if (canMatch(orderPointer)) {
         trades = matchOrder(orderPointer);
-
     }
 
-    if (!orderPointer->isFilled() && orderPointer->getOrderType() != OrderType::Market) {
-        addToBook(orderPointer);
+    // Market and IOC drop their remainder. GTC and FOK rest if still unfilled
+    // FOK reaches here only after passing canFullyFill check.
+    if (!orderPointer->isFilled()) {
+        const OrderType t = orderPointer->getOrderType();
+        if (t != OrderType::Market && t != OrderType::ImmediateOrCancel) {
+            addToBook(orderPointer);
+        }
     }
 
     return trades;
