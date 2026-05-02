@@ -46,7 +46,12 @@ void OrderBook::addToBook(OrderPointer order)
 
 bool OrderBook::canMatch(OrderPointer order) const
 {
+
     Price orderPrice = order->getPrice();
+
+    if (order->getOrderType() == OrderType::Market) {
+        return order->getSide() == Side::Buy ? !asks_.empty() : !bids_.empty();
+    }
 
     if (order->getSide() == Side::Buy) {
         if (asks_.empty()) {
@@ -184,7 +189,7 @@ std::vector<Trade> OrderBook::addOrder(Order order)
 
     }
 
-    if (!orderPointer->isFilled()) {
+    if (!orderPointer->isFilled() && orderPointer->getOrderType() != OrderType::Market) {
         addToBook(orderPointer);
     }
 
@@ -229,6 +234,22 @@ bool OrderBook::removeOrder(OrderId orderId)
 bool OrderBook::cancelOrder(OrderId orderId)
 {
     return removeOrder(orderId);
+}
+
+OrderBookLevelInfos OrderBook::getLevelInfos() const
+{
+    OrderBookLevelInfos result;
+    result.bids.reserve(bids_.size());
+    result.asks.reserve(asks_.size());
+
+    for (const auto& [price, level] : bids_) {
+        result.bids.push_back({ price, level.totalQuantity, level.orders.size() });
+    }
+    for (const auto& [price, level] : asks_) {
+        result.asks.push_back({ price, level.totalQuantity, level.orders.size() });
+    }
+
+    return result;
 }
 
 

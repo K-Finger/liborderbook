@@ -10,6 +10,7 @@
 #include "Types.h"
 #include "Order.h"
 #include "Trade.h"
+#include "LevelInfo.h"
 
 using OrderPointer = std::shared_ptr<Order>;
 
@@ -21,6 +22,7 @@ public:
     std::size_t size() const { return orders_.size(); }
     TradeId getNextTradeId() const { return nextTradeId_; }
     const std::vector<Trade>& getTrades() const { return trades_; }
+    OrderBookLevelInfos getLevelInfos() const;
     void printBook();
 
 private:
