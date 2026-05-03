@@ -3,48 +3,69 @@
 #include <algorithm>
 #include <chrono>
 #include <vector>
-#include <iterator>
 
 #include "OrderBook.h"
 #include "Order.h"
 #include "Types.h"
 #include "Side.h"
 
-void OrderBook::addToBook(OrderPointer order)
+void OrderBook::pushBack(PriceLevel& level, Order* order)
 {
-    Price orderPrice = order->getPrice();
-    Side orderSide = order->getSide();
+    order->prev = level.tail;
+    order->next = nullptr;
 
-    PriceLevel* level = nullptr;
-
-    if (orderSide == Side::Buy) {
-        auto [it, inserted] = bids_.try_emplace(
-            orderPrice,
-            PriceLevel{ .totalQuantity = Quantity{0}, .orders = {} }
-        );
-        level = &it->second;
+    if (level.tail) {
+        level.tail->next = order;
     }
     else {
-        auto [it, inserted] = asks_.try_emplace(
-            orderPrice,
-            PriceLevel{ .totalQuantity = Quantity{0}, .orders = {} }
-        );
-        level = &it->second;
+        level.head = order;
     }
 
-    level->orders.push_back(order);
-    level->totalQuantity += order->getRemainingQuantity(); // remaining, since order may have partially filled before resting
+    level.tail = order;
+    level.orderCount++;
+    level.totalQuantity += order->getRemainingQuantity();
+}
 
-    auto orderIterator = std::prev(level->orders.end());
+void OrderBook::unlink(PriceLevel& level, Order* order)
+{
+    if (order->prev) {
+        order->prev->next = order->next;
+    }
+    else {
+        level.head = order->next;
+    }
+
+    if (order->next) {
+        order->next->prev = order->prev;
+    }
+    else {
+        level.tail = order->prev;
+    }
+
+    order->prev = nullptr;
+    order->next = nullptr;
+    level.orderCount--;
+}
+
+void OrderBook::addToBook(Order* order)
+{
+    const Price price = order->getPrice();
+    const Side side = order->getSide();
+
+    PriceLevel& level = (side == Side::Buy)
+        ? bids_.try_emplace(price).first->second
+        : asks_.try_emplace(price).first->second;
+
+    pushBack(level, order);
 
     orders_[order->getOrderId()] = OrderEntry{
-        .side = orderSide,
-        .price = orderPrice,
-        .iterator = orderIterator
+        .side = side,
+        .price = price,
+        .order = order
     };
 }
 
-bool OrderBook::canMatch(OrderPointer order) const
+bool OrderBook::canMatch(Order* order) const
 {
 
     Price orderPrice = order->getPrice();
@@ -90,26 +111,18 @@ bool OrderBook::canFullyFill(Side side, Price price, Quantity qty) const
     return false;
 }
 
-OrderBook::PriceLevel* OrderBook::getBestOppositeLevel(OrderPointer order)
+OrderBook::PriceLevel* OrderBook::getBestOppositeLevel(Order* order)
 {
     if (order->getSide() == Side::Buy) {
-        if (asks_.empty()) {
-            return nullptr;
-        }
-
-        return &asks_.begin()->second;
+        return asks_.empty() ? nullptr : &asks_.begin()->second;
     }
 
-    if (bids_.empty()) {
-        return nullptr;
-    }
-
-    return &bids_.begin()->second;
+    return bids_.empty() ? nullptr : &bids_.begin()->second;
 }
 
 Trade OrderBook::createTrade(
-    OrderPointer incomingOrder,
-    OrderPointer restingOrder,
+    Order* incomingOrder,
+    Order* restingOrder,
     Quantity quantity,
     Timestamp timestamp
 )
@@ -139,22 +152,22 @@ Trade OrderBook::createTrade(
 }
 
 void OrderBook::cleanupAfterTrade(
-    OrderPointer incomingOrder,
-    OrderPointer restingOrder,
-    PriceLevel* bestPriceLevel,
+    Order* incoming,
+    Order* resting,
+    PriceLevel& level,
     Quantity tradeQuantity
 )
 {
-    bestPriceLevel->totalQuantity -= tradeQuantity;
+    level.totalQuantity -= tradeQuantity;
 
-    if (restingOrder->isFilled()) {
-        orders_.erase(restingOrder->getOrderId());
-        bestPriceLevel->orders.pop_front();
+    if (resting->isFilled()) {
+        orders_.erase(resting->getOrderId());
+        unlink(level, resting);
     }
 
-    if (bestPriceLevel->orders.empty()) {
-        Price price = restingOrder->getPrice();
-        if (incomingOrder->getSide() == Side::Buy) {
+    if (level.orderCount == 0) {
+        Price price = resting->getPrice();
+        if (incoming->getSide() == Side::Buy) {
             asks_.erase(price);
         }
         else {
@@ -163,38 +176,38 @@ void OrderBook::cleanupAfterTrade(
     }
 }
 
-std::vector<Trade> OrderBook::matchOrder(OrderPointer incomingOrder)
+std::vector<Trade> OrderBook::matchOrder(Order* incoming)
 {
     std::vector<Trade> trades;
 
-    auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+    const auto now = std::chrono::time_point_cast<std::chrono::nanoseconds>(
         std::chrono::system_clock::now()
     );
-    Timestamp arrivalTime{ now.time_since_epoch() };
+    const Timestamp arrivalTime{ now.time_since_epoch() };
 
-    while (!incomingOrder->isFilled() && canMatch(incomingOrder)) {
-        PriceLevel* bestPriceLevel = getBestOppositeLevel(incomingOrder);
+    while (!incoming->isFilled() && canMatch(incoming)) {
+        PriceLevel* level = getBestOppositeLevel(incoming);
 
-        OrderPointer restingOrder = bestPriceLevel->orders.front();
-        Quantity tradeQuantity = std::min(
-            restingOrder->getRemainingQuantity(),
-            incomingOrder->getRemainingQuantity()
+        if (level == nullptr || level->head == nullptr) {
+            break;
+        }
+
+        Order* resting = level->head;
+
+        const Quantity tradeQuantity = std::min(
+            incoming->getRemainingQuantity(),
+            resting->getRemainingQuantity()
         );
 
-        Trade trade = createTrade(incomingOrder, restingOrder, tradeQuantity, arrivalTime);
+        Trade trade = createTrade(incoming, resting, tradeQuantity, arrivalTime);
 
-        incomingOrder->fill(tradeQuantity);
-        restingOrder->fill(tradeQuantity);
+        incoming->fill(tradeQuantity);
+        resting->fill(tradeQuantity);
 
         trades.push_back(trade);
         trades_.push_back(trade);
 
-        cleanupAfterTrade(
-            incomingOrder,
-            restingOrder,
-            bestPriceLevel,
-            tradeQuantity
-        );
+        cleanupAfterTrade(incoming, resting, *level, tradeQuantity);
     }
 
     return trades;
@@ -211,19 +224,22 @@ std::vector<Trade> OrderBook::addOrder(Order order)
         return {};
     }
 
-    auto orderPointer = std::make_shared<Order>(std::move(order));
+    orderStorage_.push_back(std::make_unique<Order>(std::move(order)));
+    Order* incoming = orderStorage_.back().get();
+
     std::vector<Trade> trades;
 
-    if (canMatch(orderPointer)) {
-        trades = matchOrder(orderPointer);
+    if (canMatch(incoming)) {
+        trades = matchOrder(incoming);
     }
 
     // Market and IOC drop their remainder. GTC and FOK rest if still unfilled
     // FOK reaches here only after passing canFullyFill check.
-    if (!orderPointer->isFilled()) {
-        const OrderType t = orderPointer->getOrderType();
-        if (t != OrderType::Market && t != OrderType::ImmediateOrCancel) {
-            addToBook(orderPointer);
+    if (!incoming->isFilled()) {
+        const OrderType type = incoming->getOrderType();
+        if (type != OrderType::Market &&
+            type != OrderType::ImmediateOrCancel) {
+            addToBook(incoming);
         }
     }
 
@@ -236,27 +252,24 @@ bool OrderBook::removeOrder(OrderId orderId)
         return false;
     }
 
-    OrderEntry orderEntry = it->second;
-    OrderPointer order = *(orderEntry.iterator);
+    OrderEntry entry = it->second;
+    Order* order = entry.order;
 
-    PriceLevel* priceLevel = nullptr;
+    PriceLevel& level = entry.side == Side::Buy
+        ? bids_.at(entry.price)
+        : asks_.at(entry.price);
 
-    if (orderEntry.side == Side::Buy) {
-        priceLevel = &bids_.at(orderEntry.price);
-    }
-    else {
-        priceLevel = &asks_.at(orderEntry.price);
-    }
 
-    priceLevel->totalQuantity -= order->getRemainingQuantity();
-    priceLevel->orders.erase(orderEntry.iterator);
+    level.totalQuantity -= order->getRemainingQuantity();
 
-    if (priceLevel->orders.empty()) {
-        if (orderEntry.side == Side::Buy) {
-            bids_.erase(orderEntry.price);
+    unlink(level, order);
+
+    if (level.orderCount == 0) {
+        if (entry.side == Side::Buy) {
+            bids_.erase(entry.price);
         }
         else {
-            asks_.erase(orderEntry.price);
+            asks_.erase(entry.price);
         }
     }
 
@@ -277,10 +290,10 @@ OrderBookLevelInfos OrderBook::getLevelInfos() const
     result.asks.reserve(asks_.size());
 
     for (const auto& [price, level] : bids_) {
-        result.bids.push_back({ price, level.totalQuantity, level.orders.size() });
+        result.bids.push_back({ price, level.totalQuantity, level.orderCount });
     }
     for (const auto& [price, level] : asks_) {
-        result.asks.push_back({ price, level.totalQuantity, level.orders.size() });
+        result.asks.push_back({ price, level.totalQuantity, level.orderCount });
     }
 
     return result;
@@ -292,13 +305,13 @@ void OrderBook::printBook()
     std::cout << "=== ASKS ===" << std::endl;
 
     for (auto const& [key, value] : asks_) {
-        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(), value.orders.size());
+        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(), value.orderCount);
     }
 
     std::cout << "-------------" << std::endl;
 
     for (auto const& [key, value] : bids_) {
-        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(), value.orders.size());
+        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(), value.orderCount);
     }
 
     std::cout << "=== BIDS ===" << std::endl;

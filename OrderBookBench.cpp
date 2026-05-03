@@ -27,6 +27,26 @@
 
 // Want to get down to sub-100ns for addOrder for single threaded
 // Look into chunked bitmaps and intrusive linkedlists
+
+// V2 - Use Intrusive Linked List for orders instead of shared pointers
+// --------------------------------------------------------------------
+// Benchmark                          Time             CPU   Iterations
+// --------------------------------------------------------------------
+// BM_AddOrder_PreBuilt            91.7 ns         97.5 ns      5767356
+// BM_AddOrder_SingleMatch          222 ns          219 ns      2635294
+// BM_AddOrder_AtDepth/0           74.9 ns         71.1 ns     11200000
+// BM_AddOrder_AtDepth/100         84.6 ns         74.0 ns      8028160
+// BM_AddOrder_AtDepth/1000        97.4 ns         85.8 ns      7466667
+// BM_AddOrder_AtDepth/10000       84.1 ns         84.4 ns     10000000
+// BM_CancelOrder                  94.0 ns          105 ns      7466667
+// BM_GetLevelInfos/10             89.3 ns         87.9 ns      7466667
+// BM_GetLevelInfos/100             528 ns          531 ns      1000000
+// BM_GetLevelInfos/1000           5784 ns         5781 ns       100000
+// BM_GetLevelInfos/10000         89149 ns        85449 ns         8960
+
+// Intrusive list eliminates per-add std::list node allocation and a cache hop on level walks; 
+// shared_ptr→unique_ptr removes the control block. Combined drop ~65ns
+// GetLevelInfos regressed. likely heap fragmentation from orderStorage_ vector growth during populate
 namespace {
     std::uint64_t g_id = 0; // not thread safe
 

@@ -11,6 +11,9 @@
 class Order
 {
 public:
+    Order* prev{ nullptr };
+    Order* next{ nullptr };
+
     Order(OrderType type, OrderId id, Side side, Price price, Quantity quantity, Timestamp ts)
         : orderType_{ type }
         , orderId_{ id }
@@ -82,12 +85,12 @@ private:
     Timestamp timestamp_{};
     std::uint8_t setFlags_{ 0 };
 
-    static constexpr std::uint8_t hasId        = 1 << 0;
-    static constexpr std::uint8_t hasSide      = 1 << 1;
-    static constexpr std::uint8_t hasPrice     = 1 << 2;
-    static constexpr std::uint8_t hasQty       = 1 << 3;
+    static constexpr std::uint8_t hasId = 1 << 0;
+    static constexpr std::uint8_t hasSide = 1 << 1;
+    static constexpr std::uint8_t hasPrice = 1 << 2;
+    static constexpr std::uint8_t hasQty = 1 << 3;
     static constexpr std::uint8_t hasTimestamp = 1 << 4;
 
-    static constexpr std::uint8_t requiredLimitFlags  = hasId | hasSide | hasPrice | hasQty;
+    static constexpr std::uint8_t requiredLimitFlags = hasId | hasSide | hasPrice | hasQty;
     static constexpr std::uint8_t requiredMarketFlags = hasId | hasSide | hasQty;
 };

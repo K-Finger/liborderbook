@@ -12,8 +12,6 @@
 #include "Trade.h"
 #include "LevelInfo.h"
 
-using OrderPointer = std::shared_ptr<Order>;
-
 class OrderBook
 {
 public:
@@ -31,8 +29,10 @@ private:
     // bids_ and asks_ stores the price in a map
     struct PriceLevel
     {
-        Quantity totalQuantity;
-        std::list<OrderPointer> orders;
+        Quantity totalQuantity{ Quantity{0} };
+        Order* head{ nullptr };
+        Order* tail{ nullptr };
+        std::size_t orderCount{ 0 };
     };
 
     // Record for locating an order
@@ -40,33 +40,37 @@ private:
     {
         Side side;
         Price price;
-        std::list<OrderPointer>::iterator iterator;
+        Order* order;
     };
 
     std::map<Price, PriceLevel, std::greater<Price>> bids_;
     std::map<Price, PriceLevel, std::less<Price>> asks_;
 
     std::unordered_map<OrderId, OrderEntry> orders_;
+    std::vector<std::unique_ptr<Order>> orderStorage_;
 
     std::vector<Trade> trades_;
     TradeId nextTradeId_{ 1 };
 
-    bool canMatch(OrderPointer order) const;
+    bool canMatch(Order* order) const;
     bool canFullyFill(Side side, Price price, Quantity qty) const;
-    PriceLevel* getBestOppositeLevel(OrderPointer order);
+    PriceLevel* getBestOppositeLevel(Order* order);
     Trade createTrade(
-        OrderPointer incomingOrder,
-        OrderPointer restingOrder,
+        Order* incoming,
+        Order* resting,
         Quantity quantity,
         Timestamp timestamp
     );
     void cleanupAfterTrade(
-        OrderPointer incomingOrder,
-        OrderPointer restingOrder,
-        PriceLevel* bestPriceLevel,
+        Order* incoming,
+        Order* resting,
+        PriceLevel& level,
         Quantity tradeQuantity
     );
-    std::vector<Trade> matchOrder(OrderPointer incomingOrder);
-    void addToBook(OrderPointer order);
+    std::vector<Trade> matchOrder(Order* incomingOrder);
+    void addToBook(Order* order);
     bool removeOrder(OrderId orderId);
+
+    void pushBack(PriceLevel& level, Order* order);
+    void unlink(PriceLevel& level, Order* order);
 };
