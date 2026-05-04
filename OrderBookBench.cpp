@@ -47,6 +47,26 @@
 // Intrusive list eliminates per-add std::list node allocation and a cache hop on level walks; 
 // shared_ptr→unique_ptr removes the control block. Combined drop ~65ns
 // GetLevelInfos regressed. likely heap fragmentation from orderStorage_ vector growth during populate
+
+// v2.1.0 - Order Slab Allocator instead of unbounded orderStorage_ vector.
+// --------------------------------------------------------------------
+// Benchmark                          Time             CPU   Iterations
+// --------------------------------------------------------------------
+// BM_AddOrder_PreBuilt            67.0 ns         73.9 ns     11200000
+// BM_AddOrder_SingleMatch          143 ns          122 ns      4480000
+// BM_AddOrder_AtDepth/0           54.4 ns         54.7 ns     10000000
+// BM_AddOrder_AtDepth/100         63.9 ns         62.8 ns     11200000
+// BM_AddOrder_AtDepth/1000        56.6 ns         54.7 ns     10000000
+// BM_AddOrder_AtDepth/10000       58.3 ns         53.1 ns     10000000
+// BM_CancelOrder                  75.3 ns         59.4 ns     10000000
+// BM_GetLevelInfos/10             65.1 ns         64.1 ns     10000000
+// BM_GetLevelInfos/100             441 ns          439 ns      1600000
+// BM_GetLevelInfos/1000           4938 ns         4708 ns       149333
+// BM_GetLevelInfos/10000         50398 ns        50000 ns        10000
+
+// Note. I realized that the benchmarks up until this point have just been building at the same price
+// PriceLevel could be always available in L1 Cache. skewing results
+// Overall. the slab paid off massively. reduced prebuilt benchmark by ~27% and fixed the getLevelInfos regression
 namespace {
     std::uint64_t g_id = 0; // not thread safe
 

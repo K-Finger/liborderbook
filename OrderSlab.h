@@ -53,8 +53,8 @@ public:
     // delete copy & move
     OrderSlab(const OrderSlab&) = delete;
     OrderSlab& operator=(const OrderSlab&) = delete;
-    OrderSlab(OrderSlab&&) = delete;
-    OrderSlab& operator=(OrderSlab&&) = delete;
+    OrderSlab(OrderSlab&&) = default;
+    OrderSlab& operator=(OrderSlab&&) = default;
 private:
     // slot = region of memory for Order + pointer to next free slot
     union Slot {

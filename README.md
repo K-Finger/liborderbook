@@ -49,3 +49,4 @@ Match-path wins land where the plan predicted. AtDepth especially: `level->head`
 - [github.com/brprojects/Limit-Order-Book](https://github.com/brprojects/Limit-Order-Book)
 - [github.com/Tzadiko/Orderbook](https://github.com/Tzadiko/Orderbook/blob/master/Order.h)
 - [Strong types via CRTP](https://youtu.be/fWcnp7Bulc8) — fluent C++
+- [github.com/TomaszRewak/cpp-allocator](https://github.com/TomaszRewak/cpp-allocator) - slab allocator implementation

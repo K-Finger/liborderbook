@@ -158,20 +158,22 @@ void OrderBook::cleanupAfterTrade(
     Quantity tradeQuantity
 )
 {
+    const Price restingPrice = resting->getPrice(); // cache before release
+
     level.totalQuantity -= tradeQuantity;
 
     if (resting->isFilled()) {
         orders_.erase(resting->getOrderId());
         unlink(level, resting);
+        orderSlab_.release(resting);
     }
 
     if (level.orderCount == 0) {
-        Price price = resting->getPrice();
         if (incoming->getSide() == Side::Buy) {
-            asks_.erase(price);
+            asks_.erase(restingPrice);
         }
         else {
-            bids_.erase(price);
+            bids_.erase(restingPrice);
         }
     }
 }
@@ -224,8 +226,7 @@ std::vector<Trade> OrderBook::addOrder(Order order)
         return {};
     }
 
-    orderStorage_.push_back(std::make_unique<Order>(std::move(order)));
-    Order* incoming = orderStorage_.back().get();
+    Order* incoming = orderSlab_.allocate(std::move(order));
 
     std::vector<Trade> trades;
 
@@ -274,6 +275,7 @@ bool OrderBook::removeOrder(OrderId orderId)
     }
 
     orders_.erase(orderId);
+    orderSlab_.release(order);
 
     return true;
 }
