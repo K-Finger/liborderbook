@@ -11,6 +11,7 @@
 #include "Order.h"
 #include "Trade.h"
 #include "LevelInfo.h"
+#include "OrderSlab.h"
 
 class OrderBook
 {
@@ -47,7 +48,7 @@ private:
     std::map<Price, PriceLevel, std::less<Price>> asks_;
 
     std::unordered_map<OrderId, OrderEntry> orders_;
-    std::vector<std::unique_ptr<Order>> orderStorage_;
+    OrderSlab orderSlab_;
 
     std::vector<Trade> trades_;
     TradeId nextTradeId_{ 1 };
