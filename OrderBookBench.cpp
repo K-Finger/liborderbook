@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 #include <cstdint>
+#include <random>
 #include <vector>
 #include "OrderBook.h"
 #include "Order.h"
@@ -107,6 +108,18 @@ namespace {
         }
         return orders;
     }
+
+    std::vector<Order> buildScatterBuyBatch(std::size_t n, std::int64_t priceRange) {
+        std::mt19937 rng{ 42 };
+        std::uniform_int_distribution<std::int64_t> dist{ 1, priceRange };
+
+        std::vector<Order> orders;
+        orders.reserve(n);
+        for (std::size_t k = 0; k < n; ++k) {
+            orders.push_back(makeBuy(Price{ dist(rng) }, Quantity{ 10 }));
+        }
+        return orders;
+    }
 }
 
 static void BM_AddOrder_PreBuilt(benchmark::State& state) {
@@ -193,6 +206,35 @@ static void BM_AddOrder_AtDepth(benchmark::State& state) {
     }
 }
 BENCHMARK(BM_AddOrder_AtDepth)->Arg(0)->Arg(100)->Arg(1000)->Arg(10000);
+
+// Pre-populates book with `depth` levels, then aggressor buys hit random prices
+// uniformly across [1, depth]. Unlike AtDepth (all aggressors at one price), this
+// forces map descent on every add and prevents the destination PriceLevel from
+// staying pinned in L1.
+static void BM_AddOrder_Scatter(benchmark::State& state) {
+    const std::int64_t depth = state.range(0);
+    const std::size_t batch = 1'000;
+
+    OrderBook book;
+    populateDepth(book, depth);
+    std::vector<Order> aggressors = buildScatterBuyBatch(batch, depth);
+    std::size_t i = 0;
+
+    for (auto _ : state) {
+        if (i == batch) {
+            state.PauseTiming();
+            book = OrderBook{};
+            populateDepth(book, depth);
+            aggressors = buildScatterBuyBatch(batch, depth);
+            i = 0;
+            state.ResumeTiming();
+        }
+
+        auto trades = book.addOrder(std::move(aggressors[i++]));
+        benchmark::DoNotOptimize(trades);
+    }
+}
+BENCHMARK(BM_AddOrder_Scatter)->Arg(100)->Arg(1000)->Arg(10000);
 
 static void BM_CancelOrder(benchmark::State& state) {
     const std::size_t batch = 10'000;
