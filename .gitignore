@@ -17,7 +17,8 @@ cmake_install.cmake
 Makefile
 compile_commands.json
 
-# VSCode — keep project config, ignore personal
+# VSCode
+PLAN.md
 .vscode/*
 !.vscode/c_cpp_properties.json
 !.vscode/tasks.json

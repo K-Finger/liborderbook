@@ -1,11 +1,9 @@
 #pragma once
 
 #include <map>
-#include <list>
 #include <unordered_map>
 #include <vector>
 #include <cstddef>
-#include <memory>
 #include <functional>
 #include "Types.h"
 #include "Order.h"
@@ -26,10 +24,10 @@ public:
 
 private:
 
-    // stores a FIFO linked list of all orders at a certain price
-    // bids_ and asks_ stores the price in a map
+    // Intrusive FIFO list of all orders resting at one price (orders carry next/prev).
     struct PriceLevel
     {
+        Price price{ Price{0} };
         Quantity totalQuantity{ Quantity{0} };
         Order* head{ nullptr };
         Order* tail{ nullptr };
@@ -44,8 +42,12 @@ private:
         Order* order;
     };
 
+    // Price -> PriceLevel, sorted so begin() is the best price on each side.
     std::map<Price, PriceLevel, std::greater<Price>> bids_;
     std::map<Price, PriceLevel, std::less<Price>> asks_;
+    PriceLevel* bestBid_ = nullptr;
+    PriceLevel* bestAsk_ = nullptr;
+
 
     std::unordered_map<OrderId, OrderEntry> orders_;
     OrderSlab orderSlab_;

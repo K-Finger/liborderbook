@@ -59,6 +59,9 @@
 // BM_AddOrder_AtDepth/100         63.9 ns         62.8 ns     11200000
 // BM_AddOrder_AtDepth/1000        56.6 ns         54.7 ns     10000000
 // BM_AddOrder_AtDepth/10000       58.3 ns         53.1 ns     10000000
+// BM_AddOrder_Scatter/100         90.0 ns          100 ns      5600000
+// BM_AddOrder_Scatter/1000         105 ns          101 ns      8028160
+// BM_AddOrder_Scatter/10000        203 ns          188 ns      4977778
 // BM_CancelOrder                  75.3 ns         59.4 ns     10000000
 // BM_GetLevelInfos/10             65.1 ns         64.1 ns     10000000
 // BM_GetLevelInfos/100             441 ns          439 ns      1600000
@@ -68,6 +71,27 @@
 // Note. I realized that the benchmarks up until this point have just been building at the same price
 // PriceLevel could be always available in L1 Cache. skewing results
 // Overall. the slab paid off massively. reduced prebuilt benchmark by ~27% and fixed the getLevelInfos regression
+
+// v2.2.0 - Cached price pointers. More conditionals for maintaining cache.
+// no real performance improvement besides single match.
+// --------------------------------------------------------------------
+// Benchmark                          Time             CPU   Iterations
+// --------------------------------------------------------------------
+// BM_AddOrder_PreBuilt            89.8 ns         85.4 ns      6400000
+// BM_AddOrder_SingleMatch          184 ns          164 ns      4480000
+// BM_AddOrder_AtDepth/0           63.9 ns         57.5 ns     11150223
+// BM_AddOrder_AtDepth/100         74.1 ns         62.8 ns     11200000
+// BM_AddOrder_AtDepth/1000        66.0 ns         73.9 ns     11200000
+// BM_AddOrder_AtDepth/10000       72.2 ns         85.1 ns     11200000
+// BM_AddOrder_Scatter/100          110 ns          100 ns      7466667
+// BM_AddOrder_Scatter/1000         114 ns         99.3 ns      6291661
+// BM_AddOrder_Scatter/10000        197 ns          243 ns      4181334
+// BM_CancelOrder                 100.0 ns          110 ns      8960000
+// BM_GetLevelInfos/10             76.9 ns         73.2 ns      8960000
+// BM_GetLevelInfos/100             539 ns          502 ns      1493333
+// BM_GetLevelInfos/1000           5350 ns         5000 ns       100000
+// BM_GetLevelInfos/10000         56354 ns        51562 ns        10000
+
 namespace {
     std::uint64_t g_id = 0; // not thread safe
 

@@ -55,8 +55,20 @@ void OrderBook::addToBook(Order* order)
     PriceLevel& level = (side == Side::Buy)
         ? bids_.try_emplace(price).first->second
         : asks_.try_emplace(price).first->second;
+    level.price = price;
 
     pushBack(level, order);
+
+    if (side == Side::Buy) {
+        if (!bestBid_ || price > bestBid_->price) {
+            bestBid_ = &level;
+        }
+    }
+    else {
+        if (!bestAsk_ || price < bestAsk_->price) {
+            bestAsk_ = &level;
+        }
+    }
 
     orders_[order->getOrderId()] = OrderEntry{
         .side = side,
@@ -71,22 +83,22 @@ bool OrderBook::canMatch(Order* order) const
     Price orderPrice = order->getPrice();
 
     if (order->getOrderType() == OrderType::Market) {
-        return order->getSide() == Side::Buy ? !asks_.empty() : !bids_.empty();
+        return order->getSide() == Side::Buy ? bestAsk_ != nullptr : bestBid_ != nullptr;
     }
 
     if (order->getSide() == Side::Buy) {
-        if (asks_.empty()) {
+        if (!bestAsk_) {
             return false;
         }
 
-        return orderPrice >= asks_.begin()->first; // get price from iterator
+        return orderPrice >= bestAsk_->price;
     }
     else {
-        if (bids_.empty()) {
+        if (!bestBid_) {
             return false;
         }
 
-        return orderPrice <= bids_.begin()->first;
+        return orderPrice <= bestBid_->price;
     }
 }
 
@@ -113,11 +125,7 @@ bool OrderBook::canFullyFill(Side side, Price price, Quantity qty) const
 
 OrderBook::PriceLevel* OrderBook::getBestOppositeLevel(Order* order)
 {
-    if (order->getSide() == Side::Buy) {
-        return asks_.empty() ? nullptr : &asks_.begin()->second;
-    }
-
-    return bids_.empty() ? nullptr : &bids_.begin()->second;
+    return order->getSide() == Side::Buy ? bestAsk_ : bestBid_;
 }
 
 Trade OrderBook::createTrade(
@@ -171,9 +179,11 @@ void OrderBook::cleanupAfterTrade(
     if (level.orderCount == 0) {
         if (incoming->getSide() == Side::Buy) {
             asks_.erase(restingPrice);
+            bestAsk_ = asks_.empty() ? nullptr : &asks_.begin()->second;
         }
         else {
             bids_.erase(restingPrice);
+            bestBid_ = bids_.empty() ? nullptr : &bids_.begin()->second;
         }
     }
 }
@@ -266,11 +276,18 @@ bool OrderBook::removeOrder(OrderId orderId)
     unlink(level, order);
 
     if (level.orderCount == 0) {
+        PriceLevel* erased = &level;
         if (entry.side == Side::Buy) {
             bids_.erase(entry.price);
+            if (bestBid_ == erased) {
+                bestBid_ = bids_.empty() ? nullptr : &bids_.begin()->second;
+            }
         }
         else {
             asks_.erase(entry.price);
+            if (bestAsk_ == erased) {
+                bestAsk_ = asks_.empty() ? nullptr : &asks_.begin()->second;
+            }
         }
     }
 

@@ -1,52 +1,89 @@
-# Limit Order Book
+# liborderbook - C++20 Limit Order Book Library
 
-A C++20 limit order matching engine that handles multiple order types in sub-100ns
+A C++20 matching engine with a *sub-100ns* add-order path on a single thread. Supports GTC, market, IOC and FOK orders.
 
-## v1 baseline (20-core 2.99 GHz, MSVC Release + IPO + AVX2)
+## Usage
 
-`std::map` per side, `std::list<Order*>` per price level, `std::shared_ptr<Order>` ownership.
+Needs CMake 3.15+ and a C++20 compiler.
 
-```
-BM_AddOrder_PreBuilt           170 ns   (add to growing book, no match)
-BM_AddOrder_SingleMatch        357 ns   (resting + aggressor pair, both removed)
-BM_AddOrder_AtDepth/0          115 ns
-BM_AddOrder_AtDepth/100        118 ns
-BM_AddOrder_AtDepth/1000       114 ns
-BM_AddOrder_AtDepth/10000      121 ns
-BM_CancelOrder                 115 ns
-BM_GetLevelInfos/10           66.1 ns
-BM_GetLevelInfos/100           452 ns
-BM_GetLevelInfos/1000         4440 ns
-BM_GetLevelInfos/10000       45313 ns
+```sh
+cmake -S . -B build
+cmake --build build --config Release
 ```
 
-## v2 — intrusive linked list + unique_ptr ownership
+To link from another project:
 
-Order carries its own `prev`/`next`; PriceLevel holds head/tail. No more `std::list::_Node` allocation per add, no second cache hop on level walks. `shared_ptr` swapped for `unique_ptr` in `orderStorage_` (slab allocator deferred).
-
-```
-BM_AddOrder_PreBuilt          91.7 ns
-BM_AddOrder_SingleMatch        222 ns
-BM_AddOrder_AtDepth/0         74.9 ns
-BM_AddOrder_AtDepth/100       84.6 ns
-BM_AddOrder_AtDepth/1000      97.4 ns
-BM_AddOrder_AtDepth/10000     84.1 ns
-BM_CancelOrder                94.0 ns
-BM_GetLevelInfos/10           89.3 ns
-BM_GetLevelInfos/100           528 ns
-BM_GetLevelInfos/1000         5784 ns
-BM_GetLevelInfos/10000       89149 ns
+```cmake
+add_subdirectory(Limit-Order-Book)
+target_link_libraries(your_app PRIVATE orderbook)
 ```
 
-Match-path wins land where the plan predicted. AtDepth especially: `level->head` is one load instead of two (was `*list.begin()` -> list_node -> `Order*`), and the level walk itself is intrusive-cache-friendly.
+Then `#include "OrderBook.h"`.
 
-`getLevelInfos` regressed. `orderStorage_` grows unbounded as a `vector<unique_ptr<Order>>` — every cancel and full fill leaks the slot.
+```cpp
+OrderBook book;
 
-## References
+book.addOrder(OrderBuilder{}.id(OrderId{1}).buy().goodTillCancel()
+                  .price(Price{100}).quantity(Quantity{10}).build());
+book.addOrder(OrderBuilder{}.id(OrderId{2}).sell().goodTillCancel()
+                  .price(Price{101}).quantity(Quantity{20}).build());
 
-- [How to Build a Fast Limit Order Book](https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/) — howtohft.wordpress.com
-- [Limit Order Book in C++](https://alexabosi.wordpress.com/2014/08/28/limit-order-book-implementation-for-low-latency-trading-in-c/) — Alex Abosi
-- [github.com/brprojects/Limit-Order-Book](https://github.com/brprojects/Limit-Order-Book)
-- [github.com/Tzadiko/Orderbook](https://github.com/Tzadiko/Orderbook/blob/master/Order.h)
-- [Strong types via CRTP](https://youtu.be/fWcnp7Bulc8) — fluent C++
-- [github.com/TomaszRewak/cpp-allocator](https://github.com/TomaszRewak/cpp-allocator) - slab allocator implementation
+// market buy crosses at 101, fills 5 against order 2
+auto trades = book.addOrder(OrderBuilder{}.id(OrderId{3}).buy().market()
+                                .quantity(Quantity{5}).build());
+
+book.cancelOrder(OrderId{1});
+book.printBook();
+// === ASKS ===
+// 101 | 15 (1)
+// -------------
+// === BIDS ===
+```
+
+`OrderBuilder` validates required fields before returning an `Order`:
+
+```cpp
+OrderBuilder{}
+    .id(OrderId{42})
+    .buy()              // or .sell()
+    .goodTillCancel()   // or .market() / .fillOrKill() / .immediateOrCancel()
+    .price(Price{100})  // omit for market orders
+    .quantity(Quantity{10})
+    .build();
+```
+
+```cpp
+std::vector<Trade>  addOrder(Order order);   // match + rest remainder, returns fills
+bool                cancelOrder(OrderId id); // false if the id isn't on the book
+std::size_t         size() const;            // live order count
+OrderBookLevelInfos getLevelInfos() const;   // aggregated depth, both sides
+const std::vector<Trade>& getTrades() const; // every trade so far
+void                printBook();             // dump depth to stdout
+```
+
+```sh
+./build/Release/orderbook_tests
+```
+
+## Benchmarks
+
+Single thread, 20 cores at 2.99 GHz, MSVC Release with IPO and AVX2:
+
+```
+Add, no match          67 ns
+Add, single match     143 ns
+Add into 10k levels    58 ns
+Cancel                 75 ns
+```
+
+Per-stage history in [BENCHMARKS.md](BENCHMARKS.md).
+
+## Refs
+
+- [How to Build a Fast Limit Order Book](https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/)
+- [Limit Order Book in C++](https://alexabosi.wordpress.com/2014/08/28/limit-order-book-implementation-for-low-latency-trading-in-c/) — Abosi
+- [brprojects/Limit-Order-Book](https://github.com/brprojects/Limit-Order-Book), [Tzadiko/Orderbook](https://github.com/Tzadiko/Orderbook/blob/master/Order.h)
+- [Strong types with CRTP](https://youtu.be/fWcnp7Bulc8) — Fluent C++
+- [TomaszRewak/cpp-allocator](https://github.com/TomaszRewak/cpp-allocator) — slab allocator
+
+MIT

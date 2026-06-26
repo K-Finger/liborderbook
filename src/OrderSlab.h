@@ -36,7 +36,6 @@ public:
             throw std::bad_alloc{}; // out of slots
         }
 
-        // bread and butter
         // builds a new order at address of (&slot->order) 
         // forwards parameters to order constructor
         return new (&slot->order) Order(std::forward<Args>(args)...);
