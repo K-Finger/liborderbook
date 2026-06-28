@@ -1,4 +1,4 @@
-# liborderbook - C++20 Limit Order Book Library
+# liborderbook - C++20 L3 Limit Order Book Library
 
 A C++20 matching engine with a *sub-100ns* add-order path on a single thread. Supports GTC, market, IOC and FOK orders.
 
