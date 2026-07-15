@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 #include "Constants.h"
-#include "OrderBook.h"
 #include "Order.h"
+#include "OrderBook.h"
+
+using namespace orderbook;
 
 TEST(OrderBookEmpty, SizeIsZero) {
     OrderBook book;

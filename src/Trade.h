@@ -1,9 +1,9 @@
 #pragma once
-
 #include "Types.h"
 
-/// @brief  Data record for an executed trade
-struct Trade 
+namespace orderbook {
+
+struct Trade
 {
     TradeId id;
     OrderId buyOrderId;
@@ -12,3 +12,5 @@ struct Trade
     Quantity quantity;
     Timestamp timestamp;
 };
+
+}

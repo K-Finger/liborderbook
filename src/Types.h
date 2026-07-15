@@ -5,112 +5,125 @@
 #include <cstdint>
 #include <functional>
 
-// CRTP helper: skills reach into the concrete type without repeating the cast.
-// https://youtu.be/fWcnp7Bulc8
+namespace orderbook {
 
-template <typename Strong, template<typename> class Skill>
-struct crtp
+struct OrderId
 {
-    constexpr Strong& underlying()       noexcept { return static_cast<Strong&>(*this); }
-    constexpr Strong const& underlying() const noexcept { return static_cast<Strong const&>(*this); }
+    std::uint64_t v{};
+
+    constexpr OrderId() = default;
+    explicit constexpr OrderId(std::uint64_t val) : v(val) {}
+
+    constexpr std::uint64_t get() const noexcept { return v; }
+    auto operator<=>(OrderId const&) const = default;
 };
 
-// Skills are opt-in per alias so nonsense ops (OrderId + OrderId) don't compile.
-
-template <typename Strong>
-struct Addable : crtp<Strong, Addable>
+struct ClientId
 {
-    constexpr Strong operator+(Strong const& other) const noexcept
-    {
-        return Strong{ this->underlying().get() + other.get() };
-    }
+    std::uint64_t v{};
 
-    constexpr Strong& operator+=(Strong const& other) noexcept
+    constexpr ClientId() = default;
+    explicit constexpr ClientId(std::uint64_t val) : v(val) {}
+
+    constexpr std::uint64_t get() const noexcept { return v; }
+    auto operator<=>(ClientId const&) const = default;
+};
+
+struct TradeId
+{
+    std::uint64_t v{};
+
+    constexpr TradeId() = default;
+    explicit constexpr TradeId(std::uint64_t val) : v(val) {}
+
+    constexpr std::uint64_t get() const noexcept { return v; }
+    auto operator<=>(TradeId const&) const = default;
+
+    constexpr TradeId& operator++() noexcept { ++v; return *this; }
+    constexpr TradeId operator++(int) noexcept { auto tmp = *this; ++v; return tmp; }
+};
+
+struct Price
+{
+    std::int64_t v{};
+
+    constexpr Price() = default;
+    explicit constexpr Price(std::int64_t val) : v(val) {}
+
+    constexpr std::int64_t get() const noexcept { return v; }
+    auto operator<=>(Price const&) const = default;
+};
+
+struct Quantity
+{
+    std::uint64_t v{};
+
+    constexpr Quantity() = default;
+    explicit constexpr Quantity(std::uint64_t val) : v(val) {}
+
+    constexpr std::uint64_t get() const noexcept { return v; }
+    auto operator<=>(Quantity const&) const = default;
+
+    constexpr Quantity operator+(Quantity o) const noexcept { return Quantity{ v + o.v }; }
+    constexpr Quantity operator-(Quantity o) const noexcept { return Quantity{ v - o.v }; }
+    constexpr Quantity& operator+=(Quantity o) noexcept { v += o.v; return *this; }
+    constexpr Quantity& operator-=(Quantity o) noexcept { v -= o.v; return *this; }
+};
+
+struct Timestamp
+{
+    std::chrono::nanoseconds v{};
+
+    constexpr Timestamp() = default;
+    explicit constexpr Timestamp(std::chrono::nanoseconds val) : v(val) {}
+
+    constexpr std::chrono::nanoseconds get() const noexcept { return v; }
+    auto operator<=>(Timestamp const&) const = default;
+};
+
+}
+
+template<>
+struct std::hash<orderbook::OrderId>
+{
+    std::size_t operator()(orderbook::OrderId const& id) const noexcept
     {
-        this->underlying().get() += other.get(); return this->underlying();
+        return std::hash<std::uint64_t>{}(id.v);
     }
 };
 
-template <typename Strong>
-struct Subtractable : crtp<Strong, Subtractable>
+template<>
+struct std::hash<orderbook::ClientId>
 {
-    constexpr Strong operator-(Strong const& other) const noexcept
+    std::size_t operator()(orderbook::ClientId const& id) const noexcept
     {
-        return Strong{ this->underlying().get() - other.get() };
-    }
-
-    constexpr Strong& operator-=(Strong const& other) noexcept
-    {
-        this->underlying().get() -= other.get(); return this->underlying();
+        return std::hash<std::uint64_t>{}(id.v);
     }
 };
 
-template <typename Strong>
-struct Incrementable : crtp<Strong, Incrementable>
+template<>
+struct std::hash<orderbook::TradeId>
 {
-    constexpr Strong& operator++() noexcept
+    std::size_t operator()(orderbook::TradeId const& id) const noexcept
     {
-        ++this->underlying().get(); return this->underlying();
-    }
-
-    constexpr Strong operator++(int) noexcept
-    {
-        Strong tmp = this->underlying();
-        ++this->underlying().get();
-        return tmp;
+        return std::hash<std::uint64_t>{}(id.v);
     }
 };
 
-// Tag kills cross-alias assignment.
-
-template <typename T, typename Tag, template<typename> class... Skills>
-struct StrongType : Skills<StrongType<T, Tag, Skills...>>...
+template<>
+struct std::hash<orderbook::Price>
 {
-    constexpr StrongType() noexcept : value_{} {}
-    explicit constexpr StrongType(T v) noexcept : value_(v) {}
-
-    constexpr T& get()       noexcept { return value_; }
-    constexpr T const& get() const noexcept { return value_; }
-
-    friend constexpr bool operator==(StrongType a, StrongType b) noexcept
+    std::size_t operator()(orderbook::Price const& p) const noexcept
     {
-        return a.value_ == b.value_;
+        return std::hash<std::int64_t>{}(p.v);
     }
-
-    friend constexpr auto operator<=>(StrongType a, StrongType b) noexcept
-    {
-        return a.value_ <=> b.value_;
-    }
-
-private:
-    T value_;
 };
 
-// -----------------------------------------
-
-struct OrderIdTag {};
-struct ClientIdTag {};
-struct TradeIdTag {};
-
-struct PriceTag {};
-struct QuantityTag {};
-struct TimestampTag {};
-
-using OrderId = StrongType<std::uint64_t, OrderIdTag>;
-using ClientId = StrongType<std::uint64_t, ClientIdTag>;
-using TradeId = StrongType<std::uint64_t, TradeIdTag, Incrementable>;
-
-using Price = StrongType<std::int64_t, PriceTag>;      // signed for InvalidPrice sentinel
-using Quantity = StrongType<std::uint64_t, QuantityTag, Addable, Subtractable>;
-using Timestamp = StrongType<std::chrono::nanoseconds, TimestampTag>;
-
-// std::hash specialization for any StrongType — placed after StrongType
-// is defined so the compiler knows what we're specializing.
-template <typename T, typename Tag, template<typename> class... Skills>
-struct std::hash<StrongType<T, Tag, Skills...>>
+template<>
+struct std::hash<orderbook::Quantity>
 {
-    std::size_t operator()(StrongType<T, Tag, Skills...> const& s) const noexcept
+    std::size_t operator()(orderbook::Quantity const& q) const noexcept
     {
-        return std::hash<T>{}(s.get());
+        return std::hash<std::uint64_t>{}(q.v);
     }
 };

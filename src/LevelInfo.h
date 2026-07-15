@@ -1,8 +1,9 @@
 #pragma once
-
 #include <cstddef>
 #include <vector>
 #include "Types.h"
+
+namespace orderbook {
 
 struct LevelInfo
 {
@@ -16,3 +17,5 @@ struct OrderBookLevelInfos
     std::vector<LevelInfo> bids;
     std::vector<LevelInfo> asks;
 };
+
+}

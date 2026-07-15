@@ -3,10 +3,12 @@
 #include <chrono>
 #include <cstdint>
 
-#include "Side.h"
-#include "OrderType.h"
-#include "Types.h"
 #include "Constants.h"
+#include "OrderType.h"
+#include "Side.h"
+#include "Types.h"
+
+namespace orderbook {
 
 class Order
 {
@@ -25,23 +27,24 @@ public:
     {
     }
 
-    // Copies forbidden (OrderId identity)
-    // Moves allowed for ownership transfer
     Order(const Order&) = delete;
     Order& operator=(const Order&) = delete;
     Order(Order&&) = default;
     Order& operator=(Order&&) = default;
 
     OrderType getOrderType() const noexcept { return orderType_; }
-    OrderId   getOrderId()   const noexcept { return orderId_; }
-    Side      getSide()      const noexcept { return side_; }
-    Price     getPrice()     const noexcept { return price_; }
-    Quantity  getInitialQuantity()   const noexcept { return initialQuantity_; }
-    Quantity  getRemainingQuantity() const noexcept { return remainingQuantity_; }
+    OrderId getOrderId() const noexcept { return orderId_; }
+    Side getSide() const noexcept { return side_; }
+    Price getPrice() const noexcept { return price_; }
+    Quantity getInitialQuantity() const noexcept { return initialQuantity_; }
+    Quantity getRemainingQuantity() const noexcept { return remainingQuantity_; }
     Timestamp getTimestamp() const noexcept { return timestamp_; }
 
-    [[nodiscard]] Quantity getFilledQuantity() const noexcept { return initialQuantity_ - remainingQuantity_; }
-    [[nodiscard]] bool     isFilled()          const noexcept { return remainingQuantity_ == Quantity{ 0 }; }
+    [[nodiscard]] Quantity getFilledQuantity() const noexcept
+    {
+        return initialQuantity_ - remainingQuantity_;
+    }
+    [[nodiscard]] bool isFilled() const noexcept { return remainingQuantity_ == Quantity{ 0 }; }
 
     void fill(Quantity qty);
 
@@ -78,10 +81,10 @@ public:
 
 private:
     OrderType type_{ OrderType::GoodTillCancel };
-    OrderId   id_{};
-    Side      side_{};
-    Price     price_{};
-    Quantity  quantity_{};
+    OrderId id_{};
+    Side side_{};
+    Price price_{};
+    Quantity quantity_{};
     Timestamp timestamp_{};
     std::uint8_t setFlags_{ 0 };
 
@@ -94,3 +97,5 @@ private:
     static constexpr std::uint8_t requiredLimitFlags = hasId | hasSide | hasPrice | hasQty;
     static constexpr std::uint8_t requiredMarketFlags = hasId | hasSide | hasQty;
 };
+
+}

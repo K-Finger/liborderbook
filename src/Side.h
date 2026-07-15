@@ -1,8 +1,12 @@
 #pragma once
 #include <cstdint>
 
-enum class Side : std::uint8_t 
+namespace orderbook {
+
+enum class Side : std::uint8_t
 {
     Buy,
     Sell
 };
+
+}
