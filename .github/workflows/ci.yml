@@ -28,7 +28,7 @@ jobs:
 
   benchmark:
     runs-on: windows-latest
-    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
 
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
         run: cmake --build build --config Release --target orderbook_bench_all
 
       - name: Run benchmarks
-        run: ./build/Release/orderbook_bench_all.exe --benchmark_out=results.json --benchmark_out_format=json --benchmark_repetitions=3
+        run: ./build/Release/orderbook_bench_all.exe --benchmark_out=results.json --benchmark_out_format=json --benchmark_min_time=0.1
 
       - name: Upload results
         uses: actions/upload-artifact@v4
