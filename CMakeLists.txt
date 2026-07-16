@@ -88,7 +88,16 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(benchmark)
 
-    add_executable(orderbook_tests tests/OrderBookTests.cpp)
+    set(TEST_SOURCES
+        tests/order_tests.cpp
+        tests/orderbook_basic_tests.cpp
+        tests/matching_tests.cpp
+        tests/market_order_tests.cpp
+        tests/ioc_tests.cpp
+        tests/fok_tests.cpp
+    )
+
+    add_executable(orderbook_tests ${TEST_SOURCES})
     target_link_libraries(orderbook_tests PRIVATE orderbook GTest::gtest_main)
     include(GoogleTest)
     gtest_discover_tests(orderbook_tests)

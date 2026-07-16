@@ -1,46 +1,70 @@
-# liborderbook - C++20 Limit Order Book Matching Engine
+# liborderbook
 
-A C++20 matching engine with a *sub-100ns* add-order path on a single thread. Supports GTC, market, IOC and FOK orders.
+A high-performance C++20 limit order book matching engine with sub-100ns add-order latency.
 
-## Usage
+[![Build](https://github.com/K-Finger/liborderbook/actions/workflows/ci.yml/badge.svg)](https://github.com/K-Finger/liborderbook/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Needs CMake 3.15+ and a C++20 compiler.
+## Features
+
+- **Sub-100ns latency** on the critical path
+- **Order types**: GTC, Market, IOC, FOK
+- **Price-time priority** matching (FIFO)
+- **Strong types** for compile-time safety
+- **Slab allocator** for cache locality
+- **Zero dependencies** beyond STL
+
+## Quick Start
+
+### Build
 
 ```sh
 cmake -S . -B build
 cmake --build build --config Release
 ```
 
-To link from another project:
+### Integrate
 
 ```cmake
-add_subdirectory(Limit-Order-Book)
-target_link_libraries(your_app PRIVATE orderbook)
+add_subdirectory(liborderbook)
+target_link_libraries(your_app PRIVATE orderbook::orderbook)
 ```
 
-Then `#include "OrderBook.h"`.
+### Use
 
 ```cpp
+#include "OrderBook.h"
+
+using namespace orderbook;
+
 OrderBook book;
 
+// Place limit orders
 book.addOrder(OrderBuilder{}.id(OrderId{1}).buy().goodTillCancel()
-                  .price(Price{100}).quantity(Quantity{10}).build());
+    .price(Price{100}).quantity(Quantity{10}).build());
 book.addOrder(OrderBuilder{}.id(OrderId{2}).sell().goodTillCancel()
-                  .price(Price{101}).quantity(Quantity{20}).build());
+    .price(Price{101}).quantity(Quantity{20}).build());
 
-// market buy crosses at 101, fills 5 against order 2
+// Market order crosses the spread
 auto trades = book.addOrder(OrderBuilder{}.id(OrderId{3}).buy().market()
-                                .quantity(Quantity{5}).build());
+    .quantity(Quantity{5}).build());
 
 book.cancelOrder(OrderId{1});
 book.printBook();
-// === ASKS ===
-// 101 | 15 (1)
-// -------------
-// === BIDS ===
 ```
 
-`OrderBuilder` validates required fields before returning an `Order`:
+Output:
+
+```
+=== ASKS ===
+101 | 15 (1)
+-------------
+=== BIDS ===
+```
+
+## API
+
+### OrderBuilder
 
 ```cpp
 OrderBuilder{}
@@ -52,38 +76,59 @@ OrderBuilder{}
     .build();
 ```
 
-```cpp
-std::vector<Trade>  addOrder(Order order);   // match + rest remainder, returns fills
-bool                cancelOrder(OrderId id); // false if the id isn't on the book
-std::size_t         size() const;            // live order count
-OrderBookLevelInfos getLevelInfos() const;   // aggregated depth, both sides
-const std::vector<Trade>& getTrades() const; // every trade so far
-void                printBook();             // dump depth to stdout
-```
+### OrderBook
 
-```sh
-./build/Release/orderbook_tests
+```cpp
+std::vector<Trade>  addOrder(Order order);   // Match + rest remainder
+bool                cancelOrder(OrderId id); // Remove resting order
+std::size_t         size() const;            // Live order count
+OrderBookLevelInfos getLevelInfos() const;   // Aggregated depth
+const std::vector<Trade>& getTrades() const; // Trade history
+void                printBook();             // Debug output
 ```
 
 ## Benchmarks
 
-Single thread, 20 cores at 2.99 GHz, MSVC Release with IPO and AVX2:
+Single thread, MSVC Release with IPO and AVX2:
 
+| Operation | Latency |
+|-----------|---------|
+| Add, no match | 67 ns |
+| Add, single match | 143 ns |
+| Add into 10k levels | 58 ns |
+| Cancel | 75 ns |
+
+```sh
+./build/Release/orderbook_bench_all
 ```
-Add, no match          67 ns
-Add, single match     143 ns
-Add into 10k levels    58 ns
-Cancel                 75 ns
+
+See [BENCHMARKS.md](BENCHMARKS.md) for history.
+
+## Tests
+
+```sh
+cmake --build build --target orderbook_tests
+./build/Release/orderbook_tests
 ```
 
-Per-stage history in [BENCHMARKS.md](BENCHMARKS.md).
+## Documentation
 
-## Refs
+| Document | Description |
+|----------|-------------|
+| [Introduction](docs/introduction.md) | Architecture and design |
+| [Installation](docs/installation.md) | Build and integration |
+| [Guide](docs/guide.md) | Core concepts and operations |
+| [Examples](docs/examples.md) | Usage patterns |
+| [Support](docs/support.md) | FAQ, contributing, license |
+
+## References
 
 - [How to Build a Fast Limit Order Book](https://web.archive.org/web/20110219163448/http://howtohft.wordpress.com/2011/02/15/how-to-build-a-fast-limit-order-book/)
 - [Limit Order Book in C++](https://alexabosi.wordpress.com/2014/08/28/limit-order-book-implementation-for-low-latency-trading-in-c/) — Abosi
-- [brprojects/Limit-Order-Book](https://github.com/brprojects/Limit-Order-Book), [Tzadiko/Orderbook](https://github.com/Tzadiko/Orderbook/blob/master/Order.h)
+- [brprojects/Limit-Order-Book](https://github.com/brprojects/Limit-Order-Book)
 - [Strong types with CRTP](https://youtu.be/fWcnp7Bulc8) — Fluent C++
 - [TomaszRewak/cpp-allocator](https://github.com/TomaszRewak/cpp-allocator) — slab allocator
+
+## License
 
 MIT
