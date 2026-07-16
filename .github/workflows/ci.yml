@@ -25,25 +25,3 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
-
-  benchmark:
-    runs-on: windows-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build benchmarks
-        run: cmake --build build --config Release --target orderbook_bench_all
-
-      - name: Run benchmarks
-        run: ./build/Release/orderbook_bench_all.exe --benchmark_out=results.json --benchmark_out_format=json --benchmark_min_time=0.1
-
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-results
-          path: results.json

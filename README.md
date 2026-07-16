@@ -102,7 +102,7 @@ Single thread, MSVC Release with IPO and AVX2:
 ./build/Release/orderbook_bench_all
 ```
 
-See [BENCHMARKS.md](BENCHMARKS.md) for history.
+See [BENCHMARKS.md](docs/BENCHMARKS.md) for history.
 
 ## Tests
 
