@@ -21,9 +21,10 @@ class OrderBook
 public:
     OrderBook() : OrderBook(DefaultMinPrice, DefaultMaxPrice) {}
 
-    OrderBook(Price minPrice, Price maxPrice)
+    OrderBook(Price minPrice, Price maxPrice, std::size_t orderCapacity = DefaultOrderCapacity)
         : bids_{ minPrice, maxPrice }
         , asks_{ minPrice, maxPrice }
+        , orderSlab_{ orderCapacity }
     {
     }
 

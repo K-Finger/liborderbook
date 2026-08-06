@@ -1,7 +1,11 @@
 #pragma once
+#include <cstddef>
+
 #include "Types.h"
 
 namespace orderbook {
+
+inline constexpr std::size_t DefaultOrderCapacity = 1'000'000;
 
 inline constexpr Price InvalidPrice{ -1 };
 

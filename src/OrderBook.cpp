@@ -256,13 +256,17 @@ std::span<const Trade> OrderBook::addOrder(Order order)
         matchOrder(incoming);
     }
 
-    if (!incoming->isFilled())
+    const OrderType type = incoming->getOrderType();
+    const bool restsInBook = !incoming->isFilled() && type != OrderType::Market &&
+                             type != OrderType::ImmediateOrCancel;
+
+    if (restsInBook)
     {
-        const OrderType type = incoming->getOrderType();
-        if (type != OrderType::Market && type != OrderType::ImmediateOrCancel)
-        {
-            addToBook(incoming);
-        }
+        addToBook(incoming);
+    }
+    else
+    {
+        orderSlab_.release(incoming);
     }
 
     return tradeBuffer_;

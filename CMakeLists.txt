@@ -119,6 +119,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         tests/ioc_tests.cpp
         tests/fok_tests.cpp
         tests/price_ladder_tests.cpp
+        tests/order_pool_tests.cpp
     )
 
     add_executable(orderbook_tests ${TEST_SOURCES})
