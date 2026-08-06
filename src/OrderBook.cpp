@@ -63,7 +63,7 @@ void OrderBook::addToBook(Order* order)
 
     pushBack(level, order);
 
-    orders_[order->getOrderId()] = OrderEntry{ .side = side, .price = price, .order = order };
+    orders_[order->getOrderId()] = order;
 }
 
 bool OrderBook::acceptsPrice(const Order& order) const noexcept
@@ -278,11 +278,11 @@ bool OrderBook::removeOrder(OrderId orderId)
         return false;
     }
 
-    const OrderEntry entry = it->second;
-    Order* order = entry.order;
+    Order* order = it->second;
+    const Side side = order->getSide();
+    const Price price = order->getPrice();
 
-    PriceLevel* level =
-        entry.side == Side::Buy ? bids_.find(entry.price) : asks_.find(entry.price);
+    PriceLevel* level = (side == Side::Buy) ? bids_.find(price) : asks_.find(price);
 
     if (level == nullptr)
     {
@@ -295,13 +295,13 @@ bool OrderBook::removeOrder(OrderId orderId)
 
     if (level->orderCount == 0)
     {
-        if (entry.side == Side::Buy)
+        if (side == Side::Buy)
         {
-            bids_.erase(entry.price);
+            bids_.erase(price);
         }
         else
         {
-            asks_.erase(entry.price);
+            asks_.erase(price);
         }
     }
 

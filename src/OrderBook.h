@@ -35,17 +35,10 @@ public:
     [[nodiscard]] OrderBookLevelInfos getLevelInfos() const;
 
 private:
-    struct OrderEntry
-    {
-        Side side{};
-        Price price;
-        Order* order{ nullptr };
-    };
-
     PriceLadder<Side::Buy> bids_;
     PriceLadder<Side::Sell> asks_;
 
-    std::unordered_map<OrderId, OrderEntry> orders_;
+    std::unordered_map<OrderId, Order*> orders_;
     OrderSlab orderSlab_;
 
     std::vector<Trade> tradeBuffer_;
