@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <format>
-#include <iostream>
 #include <vector>
 
 #include "Order.h"
@@ -343,26 +341,6 @@ OrderBookLevelInfos OrderBook::getLevelInfos() const
         });
 
     return result;
-}
-
-void OrderBook::printBook() const
-{
-    const auto printLevel = [](const PriceLevel& level)
-    {
-        std::cout << std::format("{} | {} ({})\n", level.price.get(), level.totalQuantity.get(),
-                                 level.orderCount);
-        return true;
-    };
-
-    std::cout << "=== ASKS ===\n";
-
-    asks_.forEachFromBest(printLevel);
-
-    std::cout << "-------------\n";
-
-    bids_.forEachFromBest(printLevel);
-
-    std::cout << "=== BIDS ===\n";
 }
 
 }

@@ -33,7 +33,6 @@ public:
     [[nodiscard]] std::size_t size() const { return orders_.size(); }
     [[nodiscard]] TradeId getNextTradeId() const { return nextTradeId_; }
     [[nodiscard]] OrderBookLevelInfos getLevelInfos() const;
-    void printBook() const;
 
 private:
     struct OrderEntry
