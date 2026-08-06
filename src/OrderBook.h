@@ -1,14 +1,15 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
-#include <map>
 #include <unordered_map>
 #include <vector>
 
+#include "Constants.h"
 #include "LevelInfo.h"
 #include "Order.h"
 #include "OrderSlab.h"
+#include "PriceLadder.h"
+#include "PriceLevel.h"
 #include "Trade.h"
 #include "Types.h"
 
@@ -17,6 +18,14 @@ namespace orderbook {
 class OrderBook
 {
 public:
+    OrderBook() : OrderBook(DefaultMinPrice, DefaultMaxPrice) {}
+
+    OrderBook(Price minPrice, Price maxPrice)
+        : bids_{ minPrice, maxPrice }
+        , asks_{ minPrice, maxPrice }
+    {
+    }
+
     std::vector<Trade> addOrder(Order order);
     bool cancelOrder(OrderId orderId);
     std::size_t size() const { return orders_.size(); }
@@ -26,15 +35,6 @@ public:
     void printBook();
 
 private:
-    struct PriceLevel
-    {
-        Price price{ Price{ 0 } };
-        Quantity totalQuantity{ Quantity{ 0 } };
-        Order* head{ nullptr };
-        Order* tail{ nullptr };
-        std::size_t orderCount{ 0 };
-    };
-
     struct OrderEntry
     {
         Side side;
@@ -42,10 +42,8 @@ private:
         Order* order;
     };
 
-    std::map<Price, PriceLevel, std::greater<Price>> bids_;
-    std::map<Price, PriceLevel, std::less<Price>> asks_;
-    PriceLevel* bestBid_ = nullptr;
-    PriceLevel* bestAsk_ = nullptr;
+    PriceLadder<Side::Buy> bids_;
+    PriceLadder<Side::Sell> asks_;
 
     std::unordered_map<OrderId, OrderEntry> orders_;
     OrderSlab orderSlab_;
@@ -53,6 +51,7 @@ private:
     std::vector<Trade> trades_;
     TradeId nextTradeId_{ 1 };
 
+    bool acceptsPrice(const Order& order) const noexcept;
     bool canMatch(Order* order) const;
     bool canFullyFill(Side side, Price price, Quantity qty) const;
     PriceLevel* getBestOppositeLevel(Order* order);

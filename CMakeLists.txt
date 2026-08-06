@@ -8,9 +8,6 @@ option(ORDERBOOK_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 set(ORDERBOOK_SANITIZERS "" CACHE STRING
     "Comma-separated sanitizer list passed to -fsanitize=, e.g. address,undefined (ignored under MSVC)")
 
-# Applies the project's warning level (and, if enabled, sanitizers) to a target.
-# Kept as a function rather than duplicated per target since it's applied to
-# the library, the test binary, and every benchmark binary.
 function(orderbook_apply_hardening target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4)
@@ -121,6 +118,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         tests/market_order_tests.cpp
         tests/ioc_tests.cpp
         tests/fok_tests.cpp
+        tests/price_ladder_tests.cpp
     )
 
     add_executable(orderbook_tests ${TEST_SOURCES})

@@ -80,4 +80,36 @@ CancelOrder             75.3 ns
 
 ## Next Steps
 
-The std::map price index is the remaining bottleneck. Pointer chasing and poor cache locality. Planned: array-indexed price ladder for O(1) level access over bounded tick range.
+### v3 - Array-Indexed Price Ladder (planned)
+
+The `std::map` price index is the remaining bottleneck. Every add, cancel and level-drain
+pays a red-black tree descent: `try_emplace` on insert, `at` on cancel, `erase` when a level
+empties. Each descent is a chain of dependent pointer loads into scattered heap nodes, so the
+cost is cache misses rather than comparisons, and it grows with book depth.
+
+The replacement is a dense ladder indexed directly by price.
+
+**Layout.** One `PriceLevel` array per side, sized to a fixed tick band chosen at construction,
+where `index = price - minPrice`. Locating a level becomes an add and a load. There is no tree,
+no per-level node allocation, and no rebalancing.
+
+**Occupancy bitset.** A dense array is mostly empty, so "which level is best now?" cannot be a
+linear scan. Occupancy is mirrored into a bitset, 64 levels per word, scanned with
+`std::countr_zero` / `std::countl_zero`. When the best level drains, finding the next populated
+one is typically a single word test rather than a walk.
+
+**Tracked extent.** The ladder remembers its best and worst occupied index. Traversals
+(`getLevelInfos`, the FOK liquidity check) are bounded to the populated region instead of the
+whole band, so a 10-level book never scans a 110k-level array.
+
+**Side as a template parameter.** `PriceLadder<Side::Buy>` treats the highest occupied price as
+best, `PriceLadder<Side::Sell>` the lowest. Resolving this at compile time removes a branch from
+every best-level access and lets the matching code treat both sides symmetrically.
+
+**Trade-off.** The band is bounded, so memory is `O(band)` rather than `O(levels)` and prices
+outside the band are rejected — the same price-collar constraint real venues enforce. The
+default band is deliberately wide enough to cover ordinary use and still fits in a few MB.
+
+Expected: `CancelOrder` and `AddOrder_AtDepth` improve most, since those are the paths that
+touch the price index on every operation. `AddOrder_PreBuilt` should improve less — it already
+hits a cached best-level pointer.

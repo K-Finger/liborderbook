@@ -61,91 +61,81 @@ void OrderBook::addToBook(Order* order)
     const Price price = order->getPrice();
     const Side side = order->getSide();
 
-    PriceLevel& level = (side == Side::Buy) ? bids_.try_emplace(price).first->second
-                                            : asks_.try_emplace(price).first->second;
-    level.price = price;
+    PriceLevel& level = (side == Side::Buy) ? bids_.getOrCreate(price) : asks_.getOrCreate(price);
 
     pushBack(level, order);
-
-    if (side == Side::Buy)
-    {
-        if (!bestBid_ || price > bestBid_->price)
-        {
-            bestBid_ = &level;
-        }
-    }
-    else
-    {
-        if (!bestAsk_ || price < bestAsk_->price)
-        {
-            bestAsk_ = &level;
-        }
-    }
 
     orders_[order->getOrderId()] = OrderEntry{ .side = side, .price = price, .order = order };
 }
 
+bool OrderBook::acceptsPrice(const Order& order) const noexcept
+{
+    if (order.getOrderType() == OrderType::Market)
+    {
+        return true;
+    }
+
+    return bids_.contains(order.getPrice());
+}
+
 bool OrderBook::canMatch(Order* order) const
 {
-    Price orderPrice = order->getPrice();
+    const Price orderPrice = order->getPrice();
 
     if (order->getOrderType() == OrderType::Market)
     {
-        return order->getSide() == Side::Buy ? bestAsk_ != nullptr : bestBid_ != nullptr;
+        return order->getSide() == Side::Buy ? !asks_.empty() : !bids_.empty();
     }
 
     if (order->getSide() == Side::Buy)
     {
-        if (!bestAsk_)
-        {
-            return false;
-        }
-
-        return orderPrice >= bestAsk_->price;
+        const PriceLevel* bestAsk = asks_.best();
+        return bestAsk != nullptr && orderPrice >= bestAsk->price;
     }
-    else
-    {
-        if (!bestBid_)
-        {
-            return false;
-        }
 
-        return orderPrice <= bestBid_->price;
-    }
+    const PriceLevel* bestBid = bids_.best();
+    return bestBid != nullptr && orderPrice <= bestBid->price;
 }
 
 bool OrderBook::canFullyFill(Side side, Price price, Quantity qty) const
 {
     Quantity available{ 0 };
+    bool sufficient = false;
+
+    const auto accumulate = [&](const PriceLevel& level)
+    {
+        const bool withinLimit =
+            (side == Side::Buy) ? level.price <= price : level.price >= price;
+        if (!withinLimit)
+        {
+            return false;
+        }
+
+        available += level.totalQuantity;
+        if (available >= qty)
+        {
+            sufficient = true;
+            return false;
+        }
+
+        return true;
+    };
 
     if (side == Side::Buy)
     {
-        for (const auto& [askPrice, level] : asks_)
-        {
-            if (askPrice > price)
-                break;
-            available += level.totalQuantity;
-            if (available >= qty)
-                return true;
-        }
+        asks_.forEachFromBest(accumulate);
     }
     else
     {
-        for (const auto& [bidPrice, level] : bids_)
-        {
-            if (bidPrice < price)
-                break;
-            available += level.totalQuantity;
-            if (available >= qty)
-                return true;
-        }
+        bids_.forEachFromBest(accumulate);
     }
-    return false;
+
+    return sufficient;
 }
 
-OrderBook::PriceLevel* OrderBook::getBestOppositeLevel(Order* order)
+PriceLevel* OrderBook::getBestOppositeLevel(Order* order)
 {
-    return order->getSide() == Side::Buy ? bestAsk_ : bestBid_;
+    return order->getSide() == Side::Buy ? asks_.best() : bids_.best();
 }
 
 Trade OrderBook::createTrade(Order* incomingOrder,
@@ -200,12 +190,10 @@ void OrderBook::cleanupAfterTrade(Order* incoming,
         if (incoming->getSide() == Side::Buy)
         {
             asks_.erase(restingPrice);
-            bestAsk_ = asks_.empty() ? nullptr : &asks_.begin()->second;
         }
         else
         {
             bids_.erase(restingPrice);
-            bestBid_ = bids_.empty() ? nullptr : &bids_.begin()->second;
         }
     }
 }
@@ -253,6 +241,11 @@ std::vector<Trade> OrderBook::addOrder(Order order)
         return {};
     }
 
+    if (!acceptsPrice(order))
+    {
+        return {};
+    }
+
     if (order.getOrderType() == OrderType::FillOrKill &&
         !canFullyFill(order.getSide(), order.getPrice(), order.getRemainingQuantity()))
     {
@@ -288,34 +281,30 @@ bool OrderBook::removeOrder(OrderId orderId)
         return false;
     }
 
-    OrderEntry entry = it->second;
+    const OrderEntry entry = it->second;
     Order* order = entry.order;
 
-    PriceLevel& level =
-        entry.side == Side::Buy ? bids_.at(entry.price) : asks_.at(entry.price);
+    PriceLevel* level =
+        entry.side == Side::Buy ? bids_.find(entry.price) : asks_.find(entry.price);
 
-    level.totalQuantity -= order->getRemainingQuantity();
-
-    unlink(level, order);
-
-    if (level.orderCount == 0)
+    if (level == nullptr)
     {
-        PriceLevel* erased = &level;
+        return false;
+    }
+
+    level->totalQuantity -= order->getRemainingQuantity();
+
+    unlink(*level, order);
+
+    if (level->orderCount == 0)
+    {
         if (entry.side == Side::Buy)
         {
             bids_.erase(entry.price);
-            if (bestBid_ == erased)
-            {
-                bestBid_ = bids_.empty() ? nullptr : &bids_.begin()->second;
-            }
         }
         else
         {
             asks_.erase(entry.price);
-            if (bestAsk_ == erased)
-            {
-                bestAsk_ = asks_.empty() ? nullptr : &asks_.begin()->second;
-            }
         }
     }
 
@@ -333,38 +322,42 @@ bool OrderBook::cancelOrder(OrderId orderId)
 OrderBookLevelInfos OrderBook::getLevelInfos() const
 {
     OrderBookLevelInfos result;
-    result.bids.reserve(bids_.size());
-    result.asks.reserve(asks_.size());
+    result.bids.reserve(bids_.levelCount());
+    result.asks.reserve(asks_.levelCount());
 
-    for (const auto& [price, level] : bids_)
-    {
-        result.bids.push_back({ price, level.totalQuantity, level.orderCount });
-    }
-    for (const auto& [price, level] : asks_)
-    {
-        result.asks.push_back({ price, level.totalQuantity, level.orderCount });
-    }
+    bids_.forEachFromBest(
+        [&result](const PriceLevel& level)
+        {
+            result.bids.push_back({ level.price, level.totalQuantity, level.orderCount });
+            return true;
+        });
+
+    asks_.forEachFromBest(
+        [&result](const PriceLevel& level)
+        {
+            result.asks.push_back({ level.price, level.totalQuantity, level.orderCount });
+            return true;
+        });
 
     return result;
 }
 
 void OrderBook::printBook()
 {
+    const auto printLevel = [](const PriceLevel& level)
+    {
+        std::cout << std::format("{} | {} ({})\n", level.price.get(), level.totalQuantity.get(),
+                                 level.orderCount);
+        return true;
+    };
+
     std::cout << "=== ASKS ===" << std::endl;
 
-    for (auto const& [key, value] : asks_)
-    {
-        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(),
-                                 value.orderCount);
-    }
+    asks_.forEachFromBest(printLevel);
 
     std::cout << "-------------" << std::endl;
 
-    for (auto const& [key, value] : bids_)
-    {
-        std::cout << std::format("{} | {} ({})\n", key.get(), value.totalQuantity.get(),
-                                 value.orderCount);
-    }
+    bids_.forEachFromBest(printLevel);
 
     std::cout << "=== BIDS ===" << std::endl;
 }
