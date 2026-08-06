@@ -15,8 +15,8 @@ public:
     template<typename... Args>
     Order* allocate(Args&&... args)
     {
-        Slot* slot;
-        if (freeList_)
+        Slot* slot = nullptr;
+        if (freeList_ != nullptr)
         {
             slot = freeList_;
             freeList_ = slot->nextFree;
@@ -46,13 +46,19 @@ public:
     OrderSlab& operator=(const OrderSlab&) = delete;
     OrderSlab(OrderSlab&&) = default;
     OrderSlab& operator=(OrderSlab&&) = default;
+    ~OrderSlab() = default;
 
 private:
     union Slot
     {
         Order order;
         Slot* nextFree;
-        Slot() {}
+
+        Slot() : nextFree{ nullptr } {}
+        Slot(const Slot&) = delete;
+        Slot& operator=(const Slot&) = delete;
+        Slot(Slot&&) = delete;
+        Slot& operator=(Slot&&) = delete;
         ~Slot() {}
     };
 

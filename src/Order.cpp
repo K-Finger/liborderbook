@@ -28,21 +28,21 @@ Timestamp Order::now()
 OrderBuilder& OrderBuilder::id(OrderId id)
 {
     id_ = id;
-    setFlags_ |= hasId;
+    setFlags_ |= HasId;
     return *this;
 }
 
 OrderBuilder& OrderBuilder::buy()
 {
     side_ = Side::Buy;
-    setFlags_ |= hasSide;
+    setFlags_ |= HasSide;
     return *this;
 }
 
 OrderBuilder& OrderBuilder::sell()
 {
     side_ = Side::Sell;
-    setFlags_ |= hasSide;
+    setFlags_ |= HasSide;
     return *this;
 }
 
@@ -73,46 +73,54 @@ OrderBuilder& OrderBuilder::immediateOrCancel()
 OrderBuilder& OrderBuilder::price(Price p)
 {
     price_ = p;
-    setFlags_ |= hasPrice;
+    setFlags_ |= HasPrice;
     return *this;
 }
 
 OrderBuilder& OrderBuilder::quantity(Quantity qty)
 {
     quantity_ = qty;
-    setFlags_ |= hasQty;
+    setFlags_ |= HasQty;
     return *this;
 }
 
 OrderBuilder& OrderBuilder::timestamp(Timestamp t)
 {
     timestamp_ = t;
-    setFlags_ |= hasTimestamp;
+    setFlags_ |= HasTimestamp;
     return *this;
 }
 
 Order OrderBuilder::build()
 {
     const bool isMarket = (type_ == OrderType::Market);
-    const std::uint8_t required = isMarket ? requiredMarketFlags : requiredLimitFlags;
-    const std::uint8_t missing = static_cast<std::uint8_t>(required & ~setFlags_);
+    const std::uint8_t required = isMarket ? RequiredMarketFlags : RequiredLimitFlags;
+    const auto missing = static_cast<std::uint8_t>(required & ~setFlags_);
 
     if (missing != 0)
     {
         std::string msg = isMarket ? "Market order missing:" : "Limit order missing:";
-        if (missing & hasId)
+        if ((missing & HasId) != 0)
+        {
             msg += " id";
-        if (missing & hasSide)
+        }
+        if ((missing & HasSide) != 0)
+        {
             msg += " side";
-        if (missing & hasPrice)
+        }
+        if ((missing & HasPrice) != 0)
+        {
             msg += " price";
-        if (missing & hasQty)
+        }
+        if ((missing & HasQty) != 0)
+        {
             msg += " quantity";
+        }
         throw std::logic_error(msg);
     }
 
     const Price effectivePrice = isMarket ? InvalidPrice : price_;
-    const Timestamp ts = (setFlags_ & hasTimestamp) ? timestamp_ : Order::now();
+    const Timestamp ts = ((setFlags_ & HasTimestamp) != 0) ? timestamp_ : Order::now();
 
     return Order{ type_, id_, side_, effectivePrice, quantity_, ts };
 }

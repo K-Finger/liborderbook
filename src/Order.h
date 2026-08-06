@@ -31,14 +31,15 @@ public:
     Order& operator=(const Order&) = delete;
     Order(Order&&) = default;
     Order& operator=(Order&&) = default;
+    ~Order() = default;
 
-    OrderType getOrderType() const noexcept { return orderType_; }
-    OrderId getOrderId() const noexcept { return orderId_; }
-    Side getSide() const noexcept { return side_; }
-    Price getPrice() const noexcept { return price_; }
-    Quantity getInitialQuantity() const noexcept { return initialQuantity_; }
-    Quantity getRemainingQuantity() const noexcept { return remainingQuantity_; }
-    Timestamp getTimestamp() const noexcept { return timestamp_; }
+    [[nodiscard]] OrderType getOrderType() const noexcept { return orderType_; }
+    [[nodiscard]] OrderId getOrderId() const noexcept { return orderId_; }
+    [[nodiscard]] Side getSide() const noexcept { return side_; }
+    [[nodiscard]] Price getPrice() const noexcept { return price_; }
+    [[nodiscard]] Quantity getInitialQuantity() const noexcept { return initialQuantity_; }
+    [[nodiscard]] Quantity getRemainingQuantity() const noexcept { return remainingQuantity_; }
+    [[nodiscard]] Timestamp getTimestamp() const noexcept { return timestamp_; }
 
     [[nodiscard]] Quantity getFilledQuantity() const noexcept
     {
@@ -81,21 +82,21 @@ public:
 
 private:
     OrderType type_{ OrderType::GoodTillCancel };
-    OrderId id_{};
+    OrderId id_;
     Side side_{};
-    Price price_{};
-    Quantity quantity_{};
-    Timestamp timestamp_{};
+    Price price_;
+    Quantity quantity_;
+    Timestamp timestamp_;
     std::uint8_t setFlags_{ 0 };
 
-    static constexpr std::uint8_t hasId = 1 << 0;
-    static constexpr std::uint8_t hasSide = 1 << 1;
-    static constexpr std::uint8_t hasPrice = 1 << 2;
-    static constexpr std::uint8_t hasQty = 1 << 3;
-    static constexpr std::uint8_t hasTimestamp = 1 << 4;
+    static constexpr std::uint8_t HasId = 1 << 0;
+    static constexpr std::uint8_t HasSide = 1 << 1;
+    static constexpr std::uint8_t HasPrice = 1 << 2;
+    static constexpr std::uint8_t HasQty = 1 << 3;
+    static constexpr std::uint8_t HasTimestamp = 1 << 4;
 
-    static constexpr std::uint8_t requiredLimitFlags = hasId | hasSide | hasPrice | hasQty;
-    static constexpr std::uint8_t requiredMarketFlags = hasId | hasSide | hasQty;
+    static constexpr std::uint8_t RequiredLimitFlags = HasId | HasSide | HasPrice | HasQty;
+    static constexpr std::uint8_t RequiredMarketFlags = HasId | HasSide | HasQty;
 };
 
 }

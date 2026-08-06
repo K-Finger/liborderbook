@@ -14,7 +14,7 @@ struct OrderId
     constexpr OrderId() = default;
     explicit constexpr OrderId(std::uint64_t val) : v(val) {}
 
-    constexpr std::uint64_t get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::uint64_t get() const noexcept { return v; }
     auto operator<=>(OrderId const&) const = default;
 };
 
@@ -25,7 +25,7 @@ struct ClientId
     constexpr ClientId() = default;
     explicit constexpr ClientId(std::uint64_t val) : v(val) {}
 
-    constexpr std::uint64_t get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::uint64_t get() const noexcept { return v; }
     auto operator<=>(ClientId const&) const = default;
 };
 
@@ -36,7 +36,7 @@ struct TradeId
     constexpr TradeId() = default;
     explicit constexpr TradeId(std::uint64_t val) : v(val) {}
 
-    constexpr std::uint64_t get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::uint64_t get() const noexcept { return v; }
     auto operator<=>(TradeId const&) const = default;
 
     constexpr TradeId& operator++() noexcept { ++v; return *this; }
@@ -50,7 +50,7 @@ struct Price
     constexpr Price() = default;
     explicit constexpr Price(std::int64_t val) : v(val) {}
 
-    constexpr std::int64_t get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::int64_t get() const noexcept { return v; }
     auto operator<=>(Price const&) const = default;
 };
 
@@ -61,7 +61,7 @@ struct Quantity
     constexpr Quantity() = default;
     explicit constexpr Quantity(std::uint64_t val) : v(val) {}
 
-    constexpr std::uint64_t get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::uint64_t get() const noexcept { return v; }
     auto operator<=>(Quantity const&) const = default;
 
     constexpr Quantity operator+(Quantity o) const noexcept { return Quantity{ v + o.v }; }
@@ -77,7 +77,7 @@ struct Timestamp
     constexpr Timestamp() = default;
     explicit constexpr Timestamp(std::chrono::nanoseconds val) : v(val) {}
 
-    constexpr std::chrono::nanoseconds get() const noexcept { return v; }
+    [[nodiscard]] constexpr std::chrono::nanoseconds get() const noexcept { return v; }
     auto operator<=>(Timestamp const&) const = default;
 };
 

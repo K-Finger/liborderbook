@@ -30,17 +30,17 @@ public:
 
     std::span<const Trade> addOrder(Order order);
     bool cancelOrder(OrderId orderId);
-    std::size_t size() const { return orders_.size(); }
-    TradeId getNextTradeId() const { return nextTradeId_; }
-    OrderBookLevelInfos getLevelInfos() const;
-    void printBook();
+    [[nodiscard]] std::size_t size() const { return orders_.size(); }
+    [[nodiscard]] TradeId getNextTradeId() const { return nextTradeId_; }
+    [[nodiscard]] OrderBookLevelInfos getLevelInfos() const;
+    void printBook() const;
 
 private:
     struct OrderEntry
     {
-        Side side;
+        Side side{};
         Price price;
-        Order* order;
+        Order* order{ nullptr };
     };
 
     PriceLadder<Side::Buy> bids_;
@@ -52,18 +52,18 @@ private:
     std::vector<Trade> tradeBuffer_;
     TradeId nextTradeId_{ 1 };
 
-    bool acceptsPrice(const Order& order) const noexcept;
-    bool canMatch(Order* order) const;
-    bool canFullyFill(Side side, Price price, Quantity qty) const;
-    PriceLevel* getBestOppositeLevel(Order* order);
+    [[nodiscard]] bool acceptsPrice(const Order& order) const noexcept;
+    [[nodiscard]] bool canMatch(const Order* order) const;
+    [[nodiscard]] bool canFullyFill(Side side, Price price, Quantity qty) const;
+    [[nodiscard]] PriceLevel* getBestOppositeLevel(const Order* order);
     Trade createTrade(Order* incoming, Order* resting, Quantity quantity, Timestamp timestamp);
     void cleanupAfterTrade(Order* incoming, Order* resting, PriceLevel& level, Quantity tradeQty);
     void matchOrder(Order* incomingOrder);
     void addToBook(Order* order);
     bool removeOrder(OrderId orderId);
 
-    void pushBack(PriceLevel& level, Order* order);
-    void unlink(PriceLevel& level, Order* order);
+    static void pushBack(PriceLevel& level, Order* order);
+    static void unlink(PriceLevel& level, Order* order);
 };
 
 }

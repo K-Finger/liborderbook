@@ -37,12 +37,12 @@ public:
         occupancy_.assign((levels_.size() + BitsPerWord - 1) / BitsPerWord, 0);
     }
 
-    bool contains(Price price) const noexcept
+    [[nodiscard]] bool contains(Price price) const noexcept
     {
         return price >= minPrice_ && price <= maxPrice_;
     }
 
-    PriceLevel* find(Price price) noexcept
+    [[nodiscard]] PriceLevel* find(Price price) noexcept
     {
         if (!contains(price))
         {
@@ -101,24 +101,24 @@ public:
         }
     }
 
-    PriceLevel* best() noexcept
+    [[nodiscard]] PriceLevel* best() noexcept
     {
         return bestIndex_ == NoIndex ? nullptr : &levels_[bestIndex_];
     }
 
-    const PriceLevel* best() const noexcept
+    [[nodiscard]] const PriceLevel* best() const noexcept
     {
         return bestIndex_ == NoIndex ? nullptr : &levels_[bestIndex_];
     }
 
-    bool empty() const noexcept { return occupiedCount_ == 0; }
-    std::size_t levelCount() const noexcept { return occupiedCount_; }
-    std::size_t bandSize() const noexcept { return levels_.size(); }
-    Price minPrice() const noexcept { return minPrice_; }
-    Price maxPrice() const noexcept { return maxPrice_; }
+    [[nodiscard]] bool empty() const noexcept { return occupiedCount_ == 0; }
+    [[nodiscard]] std::size_t levelCount() const noexcept { return occupiedCount_; }
+    [[nodiscard]] std::size_t bandSize() const noexcept { return levels_.size(); }
+    [[nodiscard]] Price minPrice() const noexcept { return minPrice_; }
+    [[nodiscard]] Price maxPrice() const noexcept { return maxPrice_; }
 
     template<typename Fn>
-    void forEachFromBest(Fn&& fn) const
+    void forEachFromBest(Fn fn) const
     {
         std::size_t index = bestIndex_;
 
@@ -142,7 +142,7 @@ private:
     static constexpr std::size_t BitsPerWord = 64;
     static constexpr std::uint64_t MaxSpan = 1'000'000'000ULL;
 
-    static constexpr bool isBetterIndex(std::size_t lhs, std::size_t rhs) noexcept
+    [[nodiscard]] static constexpr bool isBetterIndex(std::size_t lhs, std::size_t rhs) noexcept
     {
         if constexpr (S == Side::Buy)
         {
@@ -154,18 +154,18 @@ private:
         }
     }
 
-    static constexpr std::uint64_t bitMask(std::size_t index) noexcept
+    [[nodiscard]] static constexpr std::uint64_t bitMask(std::size_t index) noexcept
     {
         return std::uint64_t{ 1 } << (index % BitsPerWord);
     }
 
-    std::size_t indexOf(Price price) const noexcept
+    [[nodiscard]] std::size_t indexOf(Price price) const noexcept
     {
         return static_cast<std::size_t>(static_cast<std::uint64_t>(price.get()) -
                                         static_cast<std::uint64_t>(minPrice_.get()));
     }
 
-    bool isOccupied(std::size_t index) const noexcept
+    [[nodiscard]] bool isOccupied(std::size_t index) const noexcept
     {
         return (occupancy_[index / BitsPerWord] & bitMask(index)) != 0;
     }
@@ -191,7 +191,7 @@ private:
         ++occupiedCount_;
     }
 
-    std::size_t nextOccupiedAtOrAbove(std::size_t from) const noexcept
+    [[nodiscard]] std::size_t nextOccupiedAtOrAbove(std::size_t from) const noexcept
     {
         if (from >= levels_.size())
         {
@@ -210,10 +210,10 @@ private:
             bits = occupancy_[word];
         }
 
-        return word * BitsPerWord + static_cast<std::size_t>(std::countr_zero(bits));
+        return (word * BitsPerWord) + static_cast<std::size_t>(std::countr_zero(bits));
     }
 
-    std::size_t prevOccupiedAtOrBelow(std::size_t from) const noexcept
+    [[nodiscard]] std::size_t prevOccupiedAtOrBelow(std::size_t from) const noexcept
     {
         if (levels_.empty())
         {
@@ -241,10 +241,11 @@ private:
             bits = occupancy_[--word];
         }
 
-        return word * BitsPerWord + (BitsPerWord - 1 - static_cast<std::size_t>(std::countl_zero(bits)));
+        return (word * BitsPerWord) +
+               (BitsPerWord - 1 - static_cast<std::size_t>(std::countl_zero(bits)));
     }
 
-    std::size_t scanTowardWorse(std::size_t from) const noexcept
+    [[nodiscard]] std::size_t scanTowardWorse(std::size_t from) const noexcept
     {
         if constexpr (S == Side::Buy)
         {
@@ -256,7 +257,7 @@ private:
         }
     }
 
-    std::size_t scanTowardBetter(std::size_t from) const noexcept
+    [[nodiscard]] std::size_t scanTowardBetter(std::size_t from) const noexcept
     {
         if constexpr (S == Side::Buy)
         {

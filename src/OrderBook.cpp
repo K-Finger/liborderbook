@@ -17,7 +17,7 @@ void OrderBook::pushBack(PriceLevel& level, Order* order)
     order->prev = level.tail;
     order->next = nullptr;
 
-    if (level.tail)
+    if (level.tail != nullptr)
     {
         level.tail->next = order;
     }
@@ -33,7 +33,7 @@ void OrderBook::pushBack(PriceLevel& level, Order* order)
 
 void OrderBook::unlink(PriceLevel& level, Order* order)
 {
-    if (order->prev)
+    if (order->prev != nullptr)
     {
         order->prev->next = order->next;
     }
@@ -42,7 +42,7 @@ void OrderBook::unlink(PriceLevel& level, Order* order)
         level.head = order->next;
     }
 
-    if (order->next)
+    if (order->next != nullptr)
     {
         order->next->prev = order->prev;
     }
@@ -78,7 +78,7 @@ bool OrderBook::acceptsPrice(const Order& order) const noexcept
     return bids_.contains(order.getPrice());
 }
 
-bool OrderBook::canMatch(Order* order) const
+bool OrderBook::canMatch(const Order* order) const
 {
     const Price orderPrice = order->getPrice();
 
@@ -133,7 +133,7 @@ bool OrderBook::canFullyFill(Side side, Price price, Quantity qty) const
     return sufficient;
 }
 
-PriceLevel* OrderBook::getBestOppositeLevel(Order* order)
+PriceLevel* OrderBook::getBestOppositeLevel(const Order* order)
 {
     return order->getSide() == Side::Buy ? asks_.best() : bids_.best();
 }
@@ -172,11 +172,11 @@ Trade OrderBook::createTrade(Order* incomingOrder,
 void OrderBook::cleanupAfterTrade(Order* incoming,
                                   Order* resting,
                                   PriceLevel& level,
-                                  Quantity tradeQuantity)
+                                  Quantity tradeQty)
 {
     const Price restingPrice = resting->getPrice();
 
-    level.totalQuantity -= tradeQuantity;
+    level.totalQuantity -= tradeQty;
 
     if (resting->isFilled())
     {
@@ -327,21 +327,25 @@ OrderBookLevelInfos OrderBook::getLevelInfos() const
     bids_.forEachFromBest(
         [&result](const PriceLevel& level)
         {
-            result.bids.push_back({ level.price, level.totalQuantity, level.orderCount });
+            result.bids.push_back({ .price = level.price,
+                                    .quantity = level.totalQuantity,
+                                    .orderCount = level.orderCount });
             return true;
         });
 
     asks_.forEachFromBest(
         [&result](const PriceLevel& level)
         {
-            result.asks.push_back({ level.price, level.totalQuantity, level.orderCount });
+            result.asks.push_back({ .price = level.price,
+                                    .quantity = level.totalQuantity,
+                                    .orderCount = level.orderCount });
             return true;
         });
 
     return result;
 }
 
-void OrderBook::printBook()
+void OrderBook::printBook() const
 {
     const auto printLevel = [](const PriceLevel& level)
     {
@@ -350,15 +354,15 @@ void OrderBook::printBook()
         return true;
     };
 
-    std::cout << "=== ASKS ===" << std::endl;
+    std::cout << "=== ASKS ===\n";
 
     asks_.forEachFromBest(printLevel);
 
-    std::cout << "-------------" << std::endl;
+    std::cout << "-------------\n";
 
     bids_.forEachFromBest(printLevel);
 
-    std::cout << "=== BIDS ===" << std::endl;
+    std::cout << "=== BIDS ===\n";
 }
 
 }
