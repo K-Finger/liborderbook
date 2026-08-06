@@ -2,12 +2,12 @@
 
 #include <cstddef>
 #include <span>
-#include <unordered_map>
 #include <vector>
 
 #include "Constants.h"
 #include "LevelInfo.h"
 #include "Order.h"
+#include "OrderIndex.h"
 #include "OrderSlab.h"
 #include "PriceLadder.h"
 #include "PriceLevel.h"
@@ -38,7 +38,7 @@ private:
     PriceLadder<Side::Buy> bids_;
     PriceLadder<Side::Sell> asks_;
 
-    std::unordered_map<OrderId, Order*> orders_;
+    OrderIndex orders_;
     OrderSlab orderSlab_;
 
     std::vector<Trade> tradeBuffer_;

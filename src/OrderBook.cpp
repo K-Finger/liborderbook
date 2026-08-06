@@ -63,7 +63,7 @@ void OrderBook::addToBook(Order* order)
 
     pushBack(level, order);
 
-    orders_[order->getOrderId()] = order;
+    orders_.insert(order->getOrderId(), order);
 }
 
 bool OrderBook::acceptsPrice(const Order& order) const noexcept
@@ -272,13 +272,12 @@ std::span<const Trade> OrderBook::addOrder(Order order)
 
 bool OrderBook::removeOrder(OrderId orderId)
 {
-    auto it = orders_.find(orderId);
-    if (it == orders_.end())
+    Order* order = orders_.find(orderId);
+    if (order == nullptr)
     {
         return false;
     }
 
-    Order* order = it->second;
     const Side side = order->getSide();
     const Price price = order->getPrice();
 
