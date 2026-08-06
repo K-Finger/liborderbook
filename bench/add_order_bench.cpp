@@ -47,10 +47,10 @@ static void BM_AddOrder_SingleMatch(benchmark::State& state) {
         }
 
         auto buyTrades = book.addOrder(std::move(buys[i]));
-        auto sellTrades = book.addOrder(std::move(sells[i]));
-        ++i;
         benchmark::DoNotOptimize(buyTrades);
+        auto sellTrades = book.addOrder(std::move(sells[i]));
         benchmark::DoNotOptimize(sellTrades);
+        ++i;
     }
 }
 BENCHMARK(BM_AddOrder_SingleMatch);

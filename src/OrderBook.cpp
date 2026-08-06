@@ -198,10 +198,8 @@ void OrderBook::cleanupAfterTrade(Order* incoming,
     }
 }
 
-std::vector<Trade> OrderBook::matchOrder(Order* incoming)
+void OrderBook::matchOrder(Order* incoming)
 {
-    std::vector<Trade> trades;
-
     const auto now =
         std::chrono::time_point_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now());
     const Timestamp arrivalTime{ now.time_since_epoch() };
@@ -225,16 +223,16 @@ std::vector<Trade> OrderBook::matchOrder(Order* incoming)
         incoming->fill(tradeQuantity);
         resting->fill(tradeQuantity);
 
-        trades.push_back(trade);
+        tradeBuffer_.push_back(trade);
 
         cleanupAfterTrade(incoming, resting, *level, tradeQuantity);
     }
-
-    return trades;
 }
 
-std::vector<Trade> OrderBook::addOrder(Order order)
+std::span<const Trade> OrderBook::addOrder(Order order)
 {
+    tradeBuffer_.clear();
+
     if (orders_.contains(order.getOrderId()))
     {
         return {};
@@ -253,11 +251,9 @@ std::vector<Trade> OrderBook::addOrder(Order order)
 
     Order* incoming = orderSlab_.allocate(std::move(order));
 
-    std::vector<Trade> trades;
-
     if (canMatch(incoming))
     {
-        trades = matchOrder(incoming);
+        matchOrder(incoming);
     }
 
     if (!incoming->isFilled())
@@ -269,7 +265,7 @@ std::vector<Trade> OrderBook::addOrder(Order order)
         }
     }
 
-    return trades;
+    return tradeBuffer_;
 }
 
 bool OrderBook::removeOrder(OrderId orderId)

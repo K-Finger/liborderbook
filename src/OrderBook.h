@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 #include <unordered_map>
 #include <vector>
 
@@ -26,7 +27,7 @@ public:
     {
     }
 
-    std::vector<Trade> addOrder(Order order);
+    std::span<const Trade> addOrder(Order order);
     bool cancelOrder(OrderId orderId);
     std::size_t size() const { return orders_.size(); }
     TradeId getNextTradeId() const { return nextTradeId_; }
@@ -47,6 +48,7 @@ private:
     std::unordered_map<OrderId, OrderEntry> orders_;
     OrderSlab orderSlab_;
 
+    std::vector<Trade> tradeBuffer_;
     TradeId nextTradeId_{ 1 };
 
     bool acceptsPrice(const Order& order) const noexcept;
@@ -55,7 +57,7 @@ private:
     PriceLevel* getBestOppositeLevel(Order* order);
     Trade createTrade(Order* incoming, Order* resting, Quantity quantity, Timestamp timestamp);
     void cleanupAfterTrade(Order* incoming, Order* resting, PriceLevel& level, Quantity tradeQty);
-    std::vector<Trade> matchOrder(Order* incomingOrder);
+    void matchOrder(Order* incomingOrder);
     void addToBook(Order* order);
     bool removeOrder(OrderId orderId);
 
