@@ -10,7 +10,7 @@ static void BM_Depth_AddAtBest(benchmark::State& state) {
     const std::int64_t depth = state.range(0);
     constexpr std::size_t kBatch = 1'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     populateDepth(book, depth);
     auto aggressors = buildBuyBatch(kBatch);
     std::size_t i = 0;
@@ -18,7 +18,7 @@ static void BM_Depth_AddAtBest(benchmark::State& state) {
     for (auto _ : state) {
         if (i == kBatch) {
             state.PauseTiming();
-            book = OrderBook{};
+            book = makeBook();
             populateDepth(book, depth);
             aggressors = buildBuyBatch(kBatch);
             i = 0;
@@ -37,7 +37,7 @@ static void BM_Depth_AddScatter(benchmark::State& state) {
     const std::int64_t depth = state.range(0);
     constexpr std::size_t kBatch = 1'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     populateDepth(book, depth);
     auto aggressors = buildScatterBuyBatch(kBatch, depth);
     std::size_t i = 0;
@@ -45,7 +45,7 @@ static void BM_Depth_AddScatter(benchmark::State& state) {
     for (auto _ : state) {
         if (i == kBatch) {
             state.PauseTiming();
-            book = OrderBook{};
+            book = makeBook();
             populateDepth(book, depth);
             aggressors = buildScatterBuyBatch(kBatch, depth);
             i = 0;
@@ -64,12 +64,12 @@ static void BM_Depth_SweepLevels(benchmark::State& state) {
     const std::int64_t levels = state.range(0);
     constexpr std::size_t kBatch = 500;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     std::vector<Order> aggressors;
     aggressors.reserve(kBatch);
 
     auto refill = [&]() {
-        book = OrderBook{};
+        book = makeBook();
         aggressors.clear();
         resetIdCounter();
 

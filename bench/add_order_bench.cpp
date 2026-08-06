@@ -8,14 +8,14 @@ using namespace fixtures;
 static void BM_AddOrder_NoMatch(benchmark::State& state) {
     constexpr std::size_t kBatch = 10'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     auto orders = buildBuyBatch(kBatch);
     std::size_t i = 0;
 
     for (auto _ : state) {
         if (i == kBatch) {
             state.PauseTiming();
-            book = OrderBook{};
+            book = makeBook();
             orders = buildBuyBatch(kBatch);
             i = 0;
             state.ResumeTiming();
@@ -31,7 +31,7 @@ BENCHMARK(BM_AddOrder_NoMatch);
 static void BM_AddOrder_SingleMatch(benchmark::State& state) {
     constexpr std::size_t kBatch = 10'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     auto buys = buildBuyBatch(kBatch);
     auto sells = buildSellBatch(kBatch);
     std::size_t i = 0;
@@ -39,7 +39,7 @@ static void BM_AddOrder_SingleMatch(benchmark::State& state) {
     for (auto _ : state) {
         if (i == kBatch) {
             state.PauseTiming();
-            book = OrderBook{};
+            book = makeBook();
             buys = buildBuyBatch(kBatch);
             sells = buildSellBatch(kBatch);
             i = 0;
@@ -60,12 +60,12 @@ static void BM_AddOrder_MultiMatch(benchmark::State& state) {
     const std::int64_t matchCount = state.range(0);
     constexpr std::size_t kBatch = 1'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     std::vector<Order> aggressors;
     aggressors.reserve(kBatch);
 
     auto refill = [&]() {
-        book = OrderBook{};
+        book = makeBook();
         aggressors.clear();
         for (std::size_t k = 0; k < kBatch; ++k) {
             // Place matchCount resting sells

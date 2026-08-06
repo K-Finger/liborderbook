@@ -7,7 +7,7 @@ using namespace fixtures;
 static void BM_GetLevelInfos(benchmark::State& state) {
     const std::int64_t depth = state.range(0);
 
-    OrderBook book;
+    OrderBook book = makeBook();
     populateDepth(book, depth);
 
     for (auto _ : state) {
@@ -21,7 +21,7 @@ BENCHMARK(BM_GetLevelInfos)->Arg(10)->Arg(100)->Arg(1000)->Arg(10000);
 static void BM_GetLevelInfos_BothSides(benchmark::State& state) {
     const std::int64_t depth = state.range(0);
 
-    OrderBook book;
+    OrderBook book = makeBook();
     populateBothSides(book, depth);
 
     for (auto _ : state) {

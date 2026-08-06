@@ -54,7 +54,7 @@ private:
         Order order;
         Slot* nextFree;
 
-        Slot() : nextFree{ nullptr } {}
+        Slot() {}
         Slot(const Slot&) = delete;
         Slot& operator=(const Slot&) = delete;
         Slot(Slot&&) = delete;

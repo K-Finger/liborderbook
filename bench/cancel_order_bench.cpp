@@ -8,12 +8,13 @@ using namespace fixtures;
 static void BM_CancelOrder(benchmark::State& state) {
     constexpr std::size_t kBatch = 10'000;
 
-    OrderBook book;
+    OrderBook book = makeBook();
     std::vector<OrderId> ids;
     ids.reserve(kBatch);
 
+    // Every order placed here is cancelled again, so the book is already empty
+    // on refill and the slab reuses its free list.
     auto refill = [&]() {
-        book = OrderBook{};
         ids.clear();
         for (std::size_t k = 0; k < kBatch; ++k) {
             Order o = makeBuy(Price{ static_cast<std::int64_t>(k + 1) }, Quantity{ 10 });
@@ -42,25 +43,33 @@ BENCHMARK(BM_CancelOrder);
 // Cancel from middle of a price level's queue (not head/tail).
 // Tests intrusive list unlink performance.
 static void BM_CancelOrder_MidQueue(benchmark::State& state) {
-    const std::int64_t queueDepth = state.range(0);
-    constexpr std::size_t kBatch = 1'000;
+    const auto queueDepth = static_cast<std::size_t>(state.range(0));
 
-    OrderBook book;
-    std::vector<OrderId> midIds;
-    midIds.reserve(kBatch);
+    OrderBook book = makeBook();
+    std::vector<OrderId> cancelOrderIds;
 
     auto refill = [&]() {
-        book = OrderBook{};
-        midIds.clear();
-        for (std::size_t k = 0; k < kBatch; ++k) {
-            // Place queueDepth orders at same price
-            for (std::int64_t q = 0; q < queueDepth; ++q) {
-                Order o = makeBuy(Price{ 100 }, Quantity{ 10 });
-                // Capture middle order's ID
-                if (q == queueDepth / 2) {
-                    midIds.push_back(o.getOrderId());
-                }
-                book.addOrder(std::move(o));
+        std::vector<OrderId> queued;
+        queued.reserve(queueDepth);
+        for (std::size_t q = 0; q < queueDepth; ++q) {
+            Order o = makeBuy(Price{ 100 }, Quantity{ 10 });
+            queued.push_back(o.getOrderId());
+            book.addOrder(std::move(o));
+        }
+
+        // Walk outwards from the middle so each unlink hits the interior of
+        // the queue rather than its head or tail.
+        cancelOrderIds.clear();
+        cancelOrderIds.reserve(queueDepth);
+        std::size_t low = queueDepth / 2;
+        std::size_t high = low + 1;
+        cancelOrderIds.push_back(queued[low]);
+        while (cancelOrderIds.size() < queueDepth) {
+            if (high < queueDepth) {
+                cancelOrderIds.push_back(queued[high++]);
+            }
+            if (cancelOrderIds.size() < queueDepth && low > 0) {
+                cancelOrderIds.push_back(queued[--low]);
             }
         }
     };
@@ -69,14 +78,14 @@ static void BM_CancelOrder_MidQueue(benchmark::State& state) {
     std::size_t i = 0;
 
     for (auto _ : state) {
-        if (i == kBatch) {
+        if (i == cancelOrderIds.size()) {
             state.PauseTiming();
             refill();
             i = 0;
             state.ResumeTiming();
         }
 
-        bool ok = book.cancelOrder(midIds[i++]);
+        bool ok = book.cancelOrder(cancelOrderIds[i++]);
         benchmark::DoNotOptimize(ok);
     }
 }

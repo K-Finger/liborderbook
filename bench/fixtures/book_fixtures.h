@@ -11,6 +11,16 @@ using namespace orderbook;
 
 namespace fixtures {
 
+inline constexpr Price BenchMinPrice{ 1 };
+inline constexpr Price BenchMaxPrice{ 12'000 };
+inline constexpr std::int64_t BenchMidPrice = 5'000;
+
+inline constexpr std::size_t BenchOrderCapacity = 1'100'000;
+
+inline OrderBook makeBook() {
+    return OrderBook{ BenchMinPrice, BenchMaxPrice, BenchOrderCapacity };
+}
+
 inline std::uint64_t g_id = 0;
 
 inline void resetIdCounter() noexcept { g_id = 0; }
@@ -73,8 +83,8 @@ inline void populateDepth(OrderBook& book, std::int64_t depth) {
 
 inline void populateBothSides(OrderBook& book, std::int64_t depth) {
     for (std::int64_t k = 0; k < depth; ++k) {
-        book.addOrder(makeBuy(Price{ 100 - k }, Quantity{ 10 }));
-        book.addOrder(makeSell(Price{ 101 + k }, Quantity{ 10 }));
+        book.addOrder(makeBuy(Price{ BenchMidPrice - k }, Quantity{ 10 }));
+        book.addOrder(makeSell(Price{ BenchMidPrice + 1 + k }, Quantity{ 10 }));
     }
 }
 
