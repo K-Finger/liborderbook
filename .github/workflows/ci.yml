@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  windows-msvc:
     runs-on: windows-latest
 
     strategy:
@@ -25,3 +25,82 @@ jobs:
 
       - name: Run tests
         run: ctest --test-dir build --build-config ${{ matrix.build_type }} --output-on-failure
+
+  linux-build-test:
+    runs-on: ubuntu-24.04
+
+    strategy:
+      matrix:
+        build_type: [Release, Debug]
+        compiler: [gcc, clang]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -y
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            sudo apt-get install -y clang
+            echo "CC=clang" >> "$GITHUB_ENV"
+            echo "CXX=clang++" >> "$GITHUB_ENV"
+          else
+            sudo apt-get install -y gcc g++
+            echo "CC=gcc" >> "$GITHUB_ENV"
+            echo "CXX=g++" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure CMake
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DORDERBOOK_WARNINGS_AS_ERRORS=ON
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }} -j
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  linux-sanitize:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake
+        env:
+          CC: gcc
+          CXX: g++
+        run: >
+          cmake -B build -DCMAKE_BUILD_TYPE=Debug
+          -DORDERBOOK_WARNINGS_AS_ERRORS=ON
+          -DORDERBOOK_SANITIZERS=address,undefined
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Run tests under ASan/UBSan
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+          UBSAN_OPTIONS: print_stacktrace=1,halt_on_error=1
+        run: ctest --test-dir build --output-on-failure
+
+  clang-tidy:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y clang clang-tidy
+
+      - name: Configure CMake
+        env:
+          CC: clang
+          CXX: clang++
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run clang-tidy
+        run: find src -name '*.cpp' -print0 | xargs -0 clang-tidy -p build

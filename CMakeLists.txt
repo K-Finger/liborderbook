@@ -4,10 +4,36 @@ project(LimitOrderBook
     LANGUAGES CXX
 )
 
+option(ORDERBOOK_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+set(ORDERBOOK_SANITIZERS "" CACHE STRING
+    "Comma-separated sanitizer list passed to -fsanitize=, e.g. address,undefined (ignored under MSVC)")
+
+# Applies the project's warning level (and, if enabled, sanitizers) to a target.
+# Kept as a function rather than duplicated per target since it's applied to
+# the library, the test binary, and every benchmark binary.
+function(orderbook_apply_hardening target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+        if(ORDERBOOK_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        if(ORDERBOOK_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+        if(ORDERBOOK_SANITIZERS)
+            target_compile_options(${target} PRIVATE -fsanitize=${ORDERBOOK_SANITIZERS} -fno-omit-frame-pointer)
+            target_link_options(${target} PRIVATE -fsanitize=${ORDERBOOK_SANITIZERS})
+        endif()
+    endif()
+endfunction()
+
 add_library(orderbook STATIC
     src/OrderBook.cpp
     src/Order.cpp
 )
+orderbook_apply_hardening(orderbook)
 
 add_library(orderbook::orderbook ALIAS orderbook)
 
@@ -99,6 +125,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     add_executable(orderbook_tests ${TEST_SOURCES})
     target_link_libraries(orderbook_tests PRIVATE orderbook GTest::gtest_main)
+    orderbook_apply_hardening(orderbook_tests)
     include(GoogleTest)
     gtest_discover_tests(orderbook_tests)
 
@@ -114,6 +141,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         add_executable(${BENCH_NAME} ${BENCH_SRC})
         target_link_libraries(${BENCH_NAME} PRIVATE orderbook benchmark::benchmark)
         target_include_directories(${BENCH_NAME} PRIVATE bench)
+        orderbook_apply_hardening(${BENCH_NAME})
         if(ipo_ok)
             set_target_properties(${BENCH_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
         endif()
@@ -133,6 +161,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     target_link_libraries(orderbook_bench_all PRIVATE orderbook benchmark::benchmark_main)
     target_include_directories(orderbook_bench_all PRIVATE bench)
     target_compile_definitions(orderbook_bench_all PRIVATE BENCHMARK_COMBINED)
+    orderbook_apply_hardening(orderbook_bench_all)
     if(ipo_ok)
         set_target_properties(orderbook_bench_all PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
