@@ -30,7 +30,6 @@ public:
     bool cancelOrder(OrderId orderId);
     std::size_t size() const { return orders_.size(); }
     TradeId getNextTradeId() const { return nextTradeId_; }
-    const std::vector<Trade>& getTrades() const { return trades_; }
     OrderBookLevelInfos getLevelInfos() const;
     void printBook();
 
@@ -48,7 +47,6 @@ private:
     std::unordered_map<OrderId, OrderEntry> orders_;
     OrderSlab orderSlab_;
 
-    std::vector<Trade> trades_;
     TradeId nextTradeId_{ 1 };
 
     bool acceptsPrice(const Order& order) const noexcept;

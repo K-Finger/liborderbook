@@ -226,7 +226,6 @@ std::vector<Trade> OrderBook::matchOrder(Order* incoming)
         resting->fill(tradeQuantity);
 
         trades.push_back(trade);
-        trades_.push_back(trade);
 
         cleanupAfterTrade(incoming, resting, *level, tradeQuantity);
     }
